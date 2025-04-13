@@ -186,7 +186,7 @@ const Events = () => {
                               <div className="space-y-2 text-sm">
                                 <div className="flex items-center text-muted-foreground">
                                   <Clock size={14} className="mr-2" />
-                                  {event.date}
+{/*                                   {event.date} */}
                                 </div>
                                 <div className="flex items-center text-muted-foreground">
                                   <MapPin size={14} className="mr-2" />
