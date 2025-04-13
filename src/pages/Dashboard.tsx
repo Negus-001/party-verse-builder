@@ -4,33 +4,20 @@ import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar, FileText, Gift, Plus, Users, Clock, MapPin, Sparkles } from 'lucide-react';
+import { Calendar, FileText, Gift, Plus, Users, Clock, MapPin, Sparkles, ListTodo } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useEvents } from '@/context/EventContext';
+import { Badge } from '@/components/ui/badge';
 
 const Dashboard = () => {
-  // Mock data for upcoming events
-  const upcomingEvents = [
-    {
-      id: '1',
-      title: 'Summer Wedding',
-      date: 'August 15, 2024',
-      location: 'Malibu Beach Club',
-      type: 'wedding',
-      guests: 120,
-    },
-    {
-      id: '2',
-      title: 'Company Holiday Party',
-      date: 'December 18, 2024',
-      location: 'Grand Hotel Downtown',
-      type: 'corporate',
-      guests: 75,
-    }
-  ];
+  const { events, loading } = useEvents();
+  
+  // Take only up to 2 events for display
+  const upcomingEvents = events.slice(0, 2);
 
   // Mock AI suggestions
   const aiInsights = [
-    "Consider adding photo booth with props for your company party",
+    "Consider adding a photo booth with props for your company party",
     "Summer weddings benefit from cooling stations for guest comfort",
     "Add signature cocktails to personalize your event experience"
   ];
@@ -59,23 +46,44 @@ const Dashboard = () => {
             {/* Main content - Events */}
             <div className="lg:col-span-2 space-y-6">
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Calendar className="h-5 w-5 mr-2 text-primary" />
-                    Upcoming Events
-                  </CardTitle>
-                  <CardDescription>Manage your scheduled events</CardDescription>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <div>
+                    <CardTitle className="flex items-center">
+                      <Calendar className="h-5 w-5 mr-2 text-primary" />
+                      Upcoming Events
+                    </CardTitle>
+                    <CardDescription>Manage your scheduled events</CardDescription>
+                  </div>
+                  <Link to="/events">
+                    <Button variant="ghost" size="sm" className="gap-1 text-primary">
+                      View All
+                      <span className="sr-only">View all events</span>
+                    </Button>
+                  </Link>
                 </CardHeader>
                 <CardContent>
-                  {upcomingEvents.length > 0 ? (
+                  {loading ? (
+                    <div className="space-y-4">
+                      {[1, 2].map((i) => (
+                        <Card key={i} className="animate-pulse">
+                          <CardContent className="h-24 p-6"></CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : upcomingEvents.length > 0 ? (
                     <div className="space-y-4">
                       {upcomingEvents.map((event) => (
-                        <Card key={event.id} className="event-card">
+                        <Card key={event.id} className="event-card border-muted">
                           <CardContent className="p-4">
                             <div className="flex flex-col sm:flex-row justify-between gap-4">
                               <div className="flex-1">
+                                <div className="flex items-center space-x-2 mb-1">
+                                  <Badge variant="outline" className="capitalize text-xs">
+                                    {event.type}
+                                  </Badge>
+                                </div>
                                 <h3 className="text-xl font-semibold mb-2">{event.title}</h3>
-                                <div className="space-y-1 text-sm">
+                                <div className="grid grid-cols-2 gap-1 text-sm">
                                   <div className="flex items-center text-muted-foreground">
                                     <Clock size={14} className="mr-1" />
                                     {event.date}
@@ -84,21 +92,25 @@ const Dashboard = () => {
                                     <MapPin size={14} className="mr-1" />
                                     {event.location}
                                   </div>
-                                  <div className="flex items-center text-muted-foreground">
+                                  <div className="flex items-center text-muted-foreground col-span-2">
                                     <Users size={14} className="mr-1" />
                                     {event.guests} guests
                                   </div>
                                 </div>
                               </div>
-                              <div>
-                                <Button size="sm" variant="outline" className="mb-2 w-full">
-                                  <FileText size={14} className="mr-1" />
-                                  View
-                                </Button>
-                                <Button size="sm" className="w-full">
-                                  <Sparkles size={14} className="mr-1" />
-                                  AI Ideas
-                                </Button>
+                              <div className="flex flex-row sm:flex-col gap-2">
+                                <Link to={`/event/${event.id}`} className="flex-1">
+                                  <Button size="sm" variant="outline" className="mb-2 w-full">
+                                    <FileText size={14} className="mr-1" />
+                                    View
+                                  </Button>
+                                </Link>
+                                <Link to={`/event/${event.id}`} className="flex-1">
+                                  <Button size="sm" className="w-full">
+                                    <Sparkles size={14} className="mr-1" />
+                                    AI Ideas
+                                  </Button>
+                                </Link>
                               </div>
                             </div>
                           </CardContent>
@@ -126,18 +138,19 @@ const Dashboard = () => {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
-                    <Users className="h-5 w-5 mr-2 text-primary" />
-                    Guest Management
+                    <ListTodo className="h-5 w-5 mr-2 text-primary" />
+                    Planning Tasks
                   </CardTitle>
+                  <CardDescription>Track your event planning progress</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="text-center py-8">
                     <div className="bg-accent/50 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 text-muted-foreground">
-                      <Users size={24} />
+                      <ListTodo size={24} />
                     </div>
-                    <h3 className="text-lg font-medium mb-2">Manage your guest lists</h3>
-                    <p className="text-muted-foreground mb-4">Track invitations, RSVPs, and seating arrangements</p>
-                    <Button variant="outline" disabled>
+                    <h3 className="text-lg font-medium mb-2">Task management</h3>
+                    <p className="text-muted-foreground mb-4">Create and track tasks for your events</p>
+                    <Button variant="outline">
                       Coming Soon
                     </Button>
                   </div>
@@ -147,18 +160,18 @@ const Dashboard = () => {
 
             {/* Sidebar */}
             <div className="space-y-6">
-              <Card>
-                <CardHeader>
+              <Card className="border-2 border-primary/20">
+                <CardHeader className="bg-accent/30 rounded-t-lg">
                   <CardTitle className="flex items-center">
                     <Sparkles className="h-5 w-5 mr-2 text-primary" />
                     AI Insights
                   </CardTitle>
                   <CardDescription>Personalized suggestions for your events</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-4">
                   <ul className="space-y-3">
                     {aiInsights.map((insight, index) => (
-                      <li key={index} className="flex">
+                      <li key={index} className="flex p-2 rounded-lg hover:bg-accent/20 transition-colors">
                         <span className="mr-2 text-primary">💡</span>
                         <p className="text-sm">{insight}</p>
                       </li>
@@ -166,7 +179,7 @@ const Dashboard = () => {
                   </ul>
                 </CardContent>
                 <CardFooter>
-                  <Link to="/inspiration" className="w-full">
+                  <Link to="/create-event" className="w-full">
                     <Button variant="outline" size="sm" className="w-full">
                       Get More Ideas
                     </Button>
@@ -188,11 +201,9 @@ const Dashboard = () => {
                     </div>
                     <h3 className="text-lg font-medium mb-2">Find Perfect Vendors</h3>
                     <p className="text-muted-foreground text-sm mb-4">Browse our curated vendor marketplace for your event needs</p>
-                    <Link to="/vendors">
-                      <Button size="sm" className="w-full">
-                        Explore Vendors
-                      </Button>
-                    </Link>
+                    <Button size="sm" className="w-full">
+                      Coming Soon
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
