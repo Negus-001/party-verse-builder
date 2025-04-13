@@ -150,7 +150,7 @@ const Dashboard = () => {
                                   <div className="grid grid-cols-2 gap-1 text-sm">
                                     <div className="flex items-center text-muted-foreground">
                                       <Clock size={14} className="mr-1" />
-                                      {event.date}
+{/*                                       {event.date} */}
                                     </div>
                                     <div className="flex items-center text-muted-foreground">
                                       <MapPin size={14} className="mr-1" />
