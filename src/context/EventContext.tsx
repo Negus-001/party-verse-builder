@@ -1,5 +1,8 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { collection, addDoc, query, getDocs, doc, getDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { db, auth } from '@/lib/firebase';
+import { useToast } from '@/hooks/use-toast';
 
 // Define event types
 export interface EventItem {
@@ -15,13 +18,26 @@ export interface EventItem {
   image?: string;
 }
 
+interface FirestoreEventItem {
+  title: string;
+  date: string;
+  location: string;
+  description: string;
+  type: string;
+  guests: number;
+  createdBy: string;
+  createdAt: Timestamp;
+  image?: string;
+}
+
 interface EventContextType {
   events: EventItem[];
-  addEvent: (event: Omit<EventItem, 'id' | 'createdAt'>) => void;
+  addEvent: (event: Omit<EventItem, 'id' | 'createdAt' | 'createdBy'>) => Promise<string>;
   getEvent: (id: string) => EventItem | undefined;
-  updateEvent: (id: string, updatedEvent: Partial<EventItem>) => void;
-  deleteEvent: (id: string) => void;
+  updateEvent: (id: string, updatedEvent: Partial<EventItem>) => Promise<void>;
+  deleteEvent: (id: string) => Promise<void>;
   loading: boolean;
+  refreshEvents: () => Promise<void>;
 }
 
 const EventContext = createContext<EventContextType | undefined>(undefined);
@@ -37,53 +53,78 @@ export const useEvents = () => {
 export const EventProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
   
-  // Simulate fetching data from Firebase
-  useEffect(() => {
-    // This would be replaced with real Firebase fetch
-    const mockEvents: EventItem[] = [
-      {
-        id: '1',
-        title: 'Summer Wedding',
-        date: 'August 15, 2024',
-        location: 'Malibu Beach Club',
-        description: 'A beautiful beach wedding with sunset views',
-        type: 'wedding',
-        guests: 120,
-        createdBy: 'user123',
-        createdAt: new Date().toISOString(),
-        image: 'https://images.unsplash.com/photo-1532712938310-34cb3982ef74'
-      },
-      {
-        id: '2',
-        title: 'Company Holiday Party',
-        date: 'December 18, 2024',
-        location: 'Grand Hotel Downtown',
-        description: 'Annual company celebration with dinner and entertainment',
-        type: 'corporate',
-        guests: 75,
-        createdBy: 'user123',
-        createdAt: new Date().toISOString(),
-        image: 'https://images.unsplash.com/photo-1516997121675-4c2d1684aa3e'
-      }
-    ];
-    
-    setTimeout(() => {
-      setEvents(mockEvents);
+  // Fetch events from Firestore
+  const fetchEvents = async () => {
+    try {
+      setLoading(true);
+      const eventsCollection = collection(db, 'events');
+      const eventsSnapshot = await getDocs(eventsCollection);
+      
+      const eventsList: EventItem[] = eventsSnapshot.docs.map(doc => {
+        const data = doc.data() as FirestoreEventItem;
+        return {
+          id: doc.id,
+          title: data.title,
+          date: data.date,
+          location: data.location,
+          description: data.description,
+          type: data.type,
+          guests: data.guests,
+          createdBy: data.createdBy,
+          createdAt: data.createdAt.toDate().toISOString(),
+          image: data.image
+        };
+      });
+      
+      setEvents(eventsList);
+    } catch (error) {
+      console.error("Error fetching events:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load events. Please try again later.",
+        variant: "destructive"
+      });
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
+  };
+  
+  // Fetch events on component mount
+  useEffect(() => {
+    fetchEvents();
   }, []);
   
   // Add a new event
-  const addEvent = (event: Omit<EventItem, 'id' | 'createdAt'>) => {
-    const newEvent: EventItem = {
-      ...event,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString(),
-    };
-    
-    setEvents((prevEvents) => [...prevEvents, newEvent]);
-    // Here we would also save to Firebase
+  const addEvent = async (event: Omit<EventItem, 'id' | 'createdAt' | 'createdBy'>) => {
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        throw new Error('You must be logged in to create an event');
+      }
+      
+      const newEvent = {
+        ...event,
+        createdBy: currentUser.uid,
+        createdAt: serverTimestamp()
+      };
+      
+      const docRef = await addDoc(collection(db, 'events'), newEvent);
+      
+      // Refresh events list
+      await fetchEvents();
+      
+      return docRef.id;
+    } catch (error) {
+      console.error("Error adding event:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create event. Please try again.",
+        variant: "destructive"
+      });
+      throw error;
+    }
   };
   
   // Get a specific event by ID
@@ -92,19 +133,59 @@ export const EventProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
   
   // Update an event
-  const updateEvent = (id: string, updatedEvent: Partial<EventItem>) => {
-    setEvents((prevEvents) => 
-      prevEvents.map((event) => 
-        event.id === id ? { ...event, ...updatedEvent } : event
-      )
-    );
-    // Here we would also update in Firebase
+  const updateEvent = async (id: string, updatedEvent: Partial<EventItem>) => {
+    try {
+      const eventRef = doc(db, 'events', id);
+      await updateDoc(eventRef, updatedEvent);
+      
+      // Update local state
+      setEvents((prevEvents) => 
+        prevEvents.map((event) => 
+          event.id === id ? { ...event, ...updatedEvent } : event
+        )
+      );
+      
+      toast({
+        title: "Success",
+        description: "Event updated successfully",
+      });
+    } catch (error) {
+      console.error("Error updating event:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update event. Please try again.",
+        variant: "destructive"
+      });
+      throw error;
+    }
   };
   
   // Delete an event
-  const deleteEvent = (id: string) => {
-    setEvents((prevEvents) => prevEvents.filter((event) => event.id !== id));
-    // Here we would also delete from Firebase
+  const deleteEvent = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'events', id));
+      
+      // Update local state
+      setEvents((prevEvents) => prevEvents.filter((event) => event.id !== id));
+      
+      toast({
+        title: "Success",
+        description: "Event deleted successfully",
+      });
+    } catch (error) {
+      console.error("Error deleting event:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete event. Please try again.",
+        variant: "destructive"
+      });
+      throw error;
+    }
+  };
+  
+  // Refresh events (useful after adding/deleting)
+  const refreshEvents = async () => {
+    await fetchEvents();
   };
   
   return (
@@ -115,7 +196,8 @@ export const EventProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         getEvent,
         updateEvent,
         deleteEvent,
-        loading 
+        loading,
+        refreshEvents
       }}
     >
       {children}

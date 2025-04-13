@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,39 +9,76 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useToast } from '@/hooks/use-toast';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
+import { signInWithEmail, signInWithGoogle } from '@/lib/firebase';
+import { FirebaseError } from 'firebase/app';
 
 const Login = () => {
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = React.useState(false);
-  const [email, setEmail] = React.useState('');
-  const [password, setPassword] = React.useState('');
+  const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Here we would normally integrate with Firebase Auth
-    // For now, just show a toast
-
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      await signInWithEmail(email, password);
       toast({
-        title: "Coming soon",
-        description: "Firebase authentication will be integrated soon. Stay tuned!",
+        title: "Success!",
+        description: "You have successfully logged in.",
       });
-    }, 1000);
+      navigate('/dashboard');
+    } catch (error) {
+      console.error("Login error:", error);
+      let errorMessage = "Failed to log in. Please check your credentials and try again.";
+      
+      if (error instanceof FirebaseError) {
+        switch(error.code) {
+          case 'auth/user-not-found':
+          case 'auth/wrong-password':
+            errorMessage = "Invalid email or password.";
+            break;
+          case 'auth/too-many-requests':
+            errorMessage = "Too many failed login attempts. Please try again later.";
+            break;
+          case 'auth/user-disabled':
+            errorMessage = "This account has been disabled.";
+            break;
+        }
+      }
+      
+      toast({
+        title: "Login Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleGoogleLogin = () => {
+  const handleGoogleLogin = async () => {
     setIsLoading(true);
     
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      await signInWithGoogle();
       toast({
-        title: "Coming soon",
-        description: "Google authentication will be integrated soon. Stay tuned!",
+        title: "Success!",
+        description: "You have successfully logged in with Google.",
       });
-    }, 1000);
+      navigate('/dashboard');
+    } catch (error) {
+      console.error("Google login error:", error);
+      toast({
+        title: "Login Failed",
+        description: "Failed to log in with Google. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

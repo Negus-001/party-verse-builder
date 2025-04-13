@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,9 +9,14 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useToast } from '@/hooks/use-toast';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
+import { signUpWithEmail, signInWithGoogle } from '@/lib/firebase';
+import { FirebaseError } from 'firebase/app';
+import { doc, setDoc } from 'firebase/firestore';
+import { db, auth } from '@/lib/firebase';
 
 const SignUp = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = React.useState(false);
   const [name, setName] = React.useState('');
   const [email, setEmail] = React.useState('');
@@ -19,30 +24,105 @@ const SignUp = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (password.length < 8) {
+      toast({
+        title: "Password too short",
+        description: "Password must be at least 8 characters long",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setIsLoading(true);
 
-    // Here we would normally integrate with Firebase Auth
-    // For now, just show a toast
-
-    setTimeout(() => {
-      setIsLoading(false);
-      toast({
-        title: "Coming soon",
-        description: "Firebase authentication will be integrated soon. Stay tuned!",
+    try {
+      const userCredential = await signUpWithEmail(email, password);
+      const user = userCredential.user;
+      
+      // Create a user profile in Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        name: name,
+        email: email,
+        createdAt: new Date(),
+        role: "user"
       });
-    }, 1000);
+      
+      toast({
+        title: "Account created!",
+        description: "Your account has been successfully created.",
+      });
+      
+      navigate('/dashboard');
+    } catch (error) {
+      console.error("Sign up error:", error);
+      let errorMessage = "Failed to create an account. Please try again.";
+      
+      if (error instanceof FirebaseError) {
+        switch(error.code) {
+          case 'auth/email-already-in-use':
+            errorMessage = "This email address is already in use.";
+            break;
+          case 'auth/invalid-email':
+            errorMessage = "Invalid email address format.";
+            break;
+          case 'auth/weak-password':
+            errorMessage = "Password is too weak. Please choose a stronger password.";
+            break;
+        }
+      }
+      
+      toast({
+        title: "Sign Up Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleGoogleSignUp = () => {
+  const handleGoogleSignUp = async () => {
     setIsLoading(true);
     
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const result = await signInWithGoogle();
+      const user = result.user;
+      
+      // Check if this is a new user
+      const isNewUser = result.user.metadata.creationTime === result.user.metadata.lastSignInTime;
+      
+      if (isNewUser) {
+        // Create a user profile in Firestore
+        await setDoc(doc(db, "users", user.uid), {
+          name: user.displayName || "User",
+          email: user.email,
+          createdAt: new Date(),
+          role: "user"
+        });
+        
+        toast({
+          title: "Account created!",
+          description: "Your account has been successfully created with Google.",
+        });
+      } else {
+        toast({
+          title: "Welcome back!",
+          description: "You've signed in with an existing Google account.",
+        });
+      }
+      
+      navigate('/dashboard');
+    } catch (error) {
+      console.error("Google sign up error:", error);
       toast({
-        title: "Coming soon",
-        description: "Google authentication will be integrated soon. Stay tuned!",
+        title: "Sign Up Failed",
+        description: "Failed to create an account with Google. Please try again.",
+        variant: "destructive",
       });
-    }, 1000);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
