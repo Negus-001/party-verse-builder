@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { collection, addDoc, query, getDocs, doc, getDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { db, auth } from '@/lib/firebase';
+import { db, auth, formatTimestamp } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 
 // Define event types
@@ -73,7 +73,7 @@ export const EventProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           type: data.type,
           guests: data.guests,
           createdBy: data.createdBy,
-          createdAt: data.createdAt.toDate().toISOString(),
+          createdAt: formatTimestamp(data.createdAt), // Use the helper function to format the Timestamp
           image: data.image
         };
       });

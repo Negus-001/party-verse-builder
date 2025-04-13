@@ -1,7 +1,7 @@
 
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, signOut } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, Timestamp } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 // Firebase configuration
@@ -36,6 +36,12 @@ export const signInWithGoogle = () => {
 
 export const logoutUser = () => {
   return signOut(auth);
+};
+
+// Helper function to format Firestore Timestamp to string
+export const formatTimestamp = (timestamp: Timestamp | undefined): string => {
+  if (!timestamp) return '';
+  return timestamp.toDate().toISOString();
 };
 
 export default app;
