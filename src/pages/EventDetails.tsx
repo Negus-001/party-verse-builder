@@ -179,7 +179,7 @@ const EventDetails = () => {
                           <Calendar className="h-5 w-5 mr-3 text-muted-foreground" />
                           <div>
                             <p className="text-sm font-medium">Date</p>
-                            <p className="text-muted-foreground">{event.date}</p>
+{/*                             <p className="text-muted-foreground">{event.date}</p> */}
                           </div>
                         </div>
                         
@@ -204,7 +204,7 @@ const EventDetails = () => {
                           <div>
                             <p className="text-sm font-medium">Created On</p>
                             <p className="text-muted-foreground">
-                              {new Date(event.createdAt).toLocaleDateString()}
+{/*                               {new Date(event.createdAt).toLocaleDateString()} */}
                             </p>
                           </div>
                         </div>
