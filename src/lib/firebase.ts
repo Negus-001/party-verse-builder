@@ -41,8 +41,16 @@ export const logoutUser = () => {
 // Enhanced helper functions for Firestore Timestamp
 export const formatTimestamp = (timestamp: Timestamp | undefined | null): string => {
   if (!timestamp) return '';
+  
   try {
-    return timestamp.toDate().toLocaleString();
+    if (typeof timestamp === 'object' && 'toDate' in timestamp) {
+      return timestamp.toDate().toLocaleString();
+    } else if (typeof timestamp === 'string') {
+      return timestamp;
+    } else {
+      console.error("Invalid timestamp format:", timestamp);
+      return 'Invalid date';
+    }
   } catch (error) {
     console.error("Error formatting timestamp:", error);
     return 'Invalid date';
@@ -58,14 +66,19 @@ export const formatEventDate = (timestamp: Timestamp | string | undefined | null
   }
   
   try {
-    const date = timestamp.toDate();
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    if (typeof timestamp === 'object' && 'toDate' in timestamp) {
+      const date = timestamp.toDate();
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } else {
+      console.error("Invalid timestamp format:", timestamp);
+      return 'Invalid date';
+    }
   } catch (error) {
     console.error("Error formatting event date:", error);
     return 'Invalid date';

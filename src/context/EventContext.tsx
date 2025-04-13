@@ -26,7 +26,7 @@ interface FirestoreEventItem {
   type: string;
   guests: number;
   createdBy: string;
-  createdAt: Timestamp;
+  createdAt: Timestamp | null;
   image?: string;
 }
 
@@ -64,16 +64,23 @@ export const EventProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       
       const eventsList: EventItem[] = eventsSnapshot.docs.map(doc => {
         const data = doc.data() as FirestoreEventItem;
+        
+        // Ensure createdAt is properly formatted
+        let createdAtStr = 'Unknown';
+        if (data.createdAt) {
+          createdAtStr = formatTimestamp(data.createdAt);
+        }
+        
         return {
           id: doc.id,
-          title: data.title,
-          date: data.date,
-          location: data.location,
-          description: data.description,
-          type: data.type,
-          guests: data.guests,
-          createdBy: data.createdBy,
-          createdAt: formatTimestamp(data.createdAt), 
+          title: data.title || 'Untitled Event',
+          date: data.date || 'No date specified',
+          location: data.location || 'No location specified',
+          description: data.description || 'No description',
+          type: data.type || 'other',
+          guests: data.guests || 0,
+          createdBy: data.createdBy || '',
+          createdAt: createdAtStr,
           image: data.image
         };
       });
