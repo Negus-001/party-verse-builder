@@ -9,7 +9,7 @@ import EventBasicDetailsForm from '@/components/events/EventBasicDetailsForm';
 import EventAIAssistant from '@/components/events/EventAIAssistant';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Confetti, PartyPopper } from 'lucide-react';
+import { PartyPopper } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 enum CreationStep {
