@@ -83,6 +83,65 @@
   }
 }
 
+/* Custom Animations */
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes spin-slow {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+
+/* Animation Utility Classes */
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-pulse-slow {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-spin-slow {
+  animation: spin-slow 8s linear infinite;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* Transitions */
+.transition-all-ease {
+  @apply transition-all duration-300 ease-in-out;
+}
+
+.transition-transform-ease {
+  @apply transition-transform duration-300 ease-in-out;
+}
+
+.hover-scale {
+  @apply hover:scale-105 transition-transform-ease;
+}
+
+/* Glass Morphism */
+.glass {
+  @apply bg-white/10 dark:bg-black/10 backdrop-blur-lg border border-white/20 dark:border-white/10;
+}
+
 .gradient-text {
   @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary;
 }
@@ -93,4 +152,80 @@
 
 .event-card {
   @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+}
+
+/* Entrance Animations */
+.fade-in {
+  @apply opacity-0 animate-[fadeIn_0.6s_ease-out_forwards];
+}
+
+.slide-in-bottom {
+  @apply translate-y-10 opacity-0 animate-[slideInBottom_0.5s_ease-out_forwards];
+}
+
+.slide-in-left {
+  @apply -translate-x-10 opacity-0 animate-[slideInLeft_0.5s_ease-out_forwards];
+}
+
+.slide-in-right {
+  @apply translate-x-10 opacity-0 animate-[slideInRight_0.5s_ease-out_forwards];
+}
+
+@keyframes fadeIn {
+  to { opacity: 1; }
+}
+
+@keyframes slideInBottom {
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes slideInLeft {
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideInRight {
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* Staggered Animation Delays */
+.delay-100 {
+  animation-delay: 100ms;
+}
+
+.delay-200 {
+  animation-delay: 200ms;
+}
+
+.delay-300 {
+  animation-delay: 300ms;
+}
+
+.delay-400 {
+  animation-delay: 400ms;
+}
+
+.delay-500 {
+  animation-delay: 500ms;
+}
+
+/* Custom Scrollbar */
+/* Width */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+/* Track */
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+/* Handle */
+::-webkit-scrollbar-thumb {
+  @apply bg-primary/30 rounded-full;
+}
+
+/* Handle on hover */
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-primary/50;
 }

@@ -38,10 +38,38 @@ export const logoutUser = () => {
   return signOut(auth);
 };
 
-// Helper function to format Firestore Timestamp to string
-export const formatTimestamp = (timestamp: Timestamp | undefined): string => {
+// Enhanced helper functions for Firestore Timestamp
+export const formatTimestamp = (timestamp: Timestamp | undefined | null): string => {
   if (!timestamp) return '';
-  return timestamp.toDate().toISOString();
+  try {
+    return timestamp.toDate().toLocaleString();
+  } catch (error) {
+    console.error("Error formatting timestamp:", error);
+    return 'Invalid date';
+  }
+};
+
+// Format timestamp specifically for display in event cards
+export const formatEventDate = (timestamp: Timestamp | string | undefined | null): string => {
+  if (!timestamp) return '';
+  
+  if (typeof timestamp === 'string') {
+    return timestamp;
+  }
+  
+  try {
+    const date = timestamp.toDate();
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch (error) {
+    console.error("Error formatting event date:", error);
+    return 'Invalid date';
+  }
 };
 
 export default app;
