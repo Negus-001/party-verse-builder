@@ -55,7 +55,7 @@ const Navbar = () => {
       <div className="container mx-auto flex justify-between items-center">
         <Link to="/" className="flex items-center">
           <h1 className="text-xl md:text-2xl font-bold font-display">
-            <span className="gradient-text">Party</span>Verse
+            <span className="gradient-text">Celebration</span> Central
           </h1>
         </Link>
 
