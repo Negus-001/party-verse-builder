@@ -1,103 +1,104 @@
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { EventProvider } from "@/context/EventContext";
-import { AuthProvider } from "@/context/AuthContext";
-import { ThemeProvider } from "@/context/ThemeContext";
-import Chatbot from "@/components/chatbot/Chatbot";
-import Index from "./pages/Index";
-import Login from "./pages/Login";
-import SignUp from "./pages/SignUp";
-import CreateEvent from "./pages/CreateEvent";
-import Dashboard from "./pages/Dashboard";
-import Events from "./pages/Events";
-import EventDetails from "./pages/EventDetails";
-import NotFound from "./pages/NotFound";
+import { Route, Routes } from "react-router-dom";
+import { Suspense, lazy, useEffect } from "react";
+import { useAuth } from "./context/AuthContext";
+import { Toaster } from "./components/ui/toaster";
+import { Toaster as Sonner } from "./components/ui/sonner";
+import { ThemeProvider } from "./context/ThemeContext";
+import { AnimatePresence } from "framer-motion";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
-import ForgotPassword from "./pages/ForgotPassword";
-import Vendors from "./pages/Vendors";
-import VendorDetails from "./pages/VendorDetails";
-import Inspiration from "./pages/Inspiration";
-import About from "./pages/About";
-import Contact from "./pages/Contact";
-import Blog from "./pages/Blog";
-import Terms from "./pages/Terms";
-import Privacy from "./pages/Privacy";
-import Help from "./pages/Help";
-import EditEvent from "./pages/EditEvent";
-import AIAssistant from "./pages/AIAssistant";
-import Settings from "./pages/Settings";
-import UserProfile from "./pages/UserProfile";
+import Chatbot from "./components/chatbot/Chatbot";
 
-const queryClient = new QueryClient();
+// Lazy-loaded pages
+const Home = lazy(() => import("./pages/Index"));
+const About = lazy(() => import("./pages/About"));
+const Login = lazy(() => import("./pages/Login"));
+const SignUp = lazy(() => import("./pages/SignUp"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Events = lazy(() => import("./pages/Events"));
+const EventDetails = lazy(() => import("./pages/EventDetails"));
+const CreateEvent = lazy(() => import("./pages/CreateEvent"));
+const EditEvent = lazy(() => import("./pages/EditEvent"));
+const UserProfile = lazy(() => import("./pages/UserProfile"));
+const Settings = lazy(() => import("./pages/Settings"));
+const Privacy = lazy(() => import("./pages/Privacy"));
+const Terms = lazy(() => import("./pages/Terms"));
+const Contact = lazy(() => import("./pages/Contact"));
+const Help = lazy(() => import("./pages/Help"));
+const Blog = lazy(() => import("./pages/Blog"));
+const AIAssistant = lazy(() => import("./pages/AIAssistant"));
+const Vendors = lazy(() => import("./pages/Vendors"));
+const VendorDetails = lazy(() => import("./pages/VendorDetails"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const Inspiration = lazy(() => import("./pages/Inspiration"));
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider defaultTheme="system">
-      <TooltipProvider>
-        <AuthProvider>
-          <EventProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/signup" element={<SignUp />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/create-event" element={
-                  <ProtectedRoute>
-                    <CreateEvent />
-                  </ProtectedRoute>
-                } />
-                <Route path="/edit-event/:id" element={
-                  <ProtectedRoute>
-                    <EditEvent />
-                  </ProtectedRoute>
-                } />
-                <Route path="/dashboard" element={
-                  <ProtectedRoute>
-                    <Dashboard />
-                  </ProtectedRoute>
-                } />
-                <Route path="/events" element={<Events />} />
-                <Route path="/event/:id" element={<EventDetails />} />
-                <Route path="/vendors" element={<Vendors />} />
-                <Route path="/vendor/:id" element={<VendorDetails />} />
-                <Route path="/inspiration" element={<Inspiration />} />
-                <Route path="/ai-assistant" element={
-                  <ProtectedRoute>
-                    <AIAssistant />
-                  </ProtectedRoute>
-                } />
-                <Route path="/settings" element={
-                  <ProtectedRoute>
-                    <Settings />
-                  </ProtectedRoute>
-                } />
-                <Route path="/profile" element={
-                  <ProtectedRoute>
-                    <UserProfile />
-                  </ProtectedRoute>
-                } />
-                <Route path="/about" element={<About />} />
-                <Route path="/contact" element={<Contact />} />
-                <Route path="/blog" element={<Blog />} />
-                <Route path="/terms" element={<Terms />} />
-                <Route path="/privacy" element={<Privacy />} />
-                <Route path="/help" element={<Help />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-              <Chatbot />
-            </BrowserRouter>
-          </EventProvider>
-        </AuthProvider>
-      </TooltipProvider>
-    </ThemeProvider>
-  </QueryClientProvider>
+// Loading component
+const LoadingFallback = () => (
+  <div className="flex items-center justify-center h-screen w-full bg-gradient-to-b from-background to-accent/5">
+    <div className="space-y-4 flex flex-col items-center">
+      <div className="h-12 w-12 rounded-full border-4 border-t-primary border-r-transparent border-b-primary border-l-transparent animate-spin" />
+      <h2 className="text-xl font-display font-medium animate-pulse">
+        Celebration Central
+      </h2>
+    </div>
+  </div>
 );
+
+function App() {
+  const { currentUser } = useAuth();
+  
+  // Page transition configuration
+  const pageTransition = {
+    initial: { opacity: 0 },
+    animate: { opacity: 1 },
+    exit: { opacity: 0 },
+  };
+  
+  // This will run on mount to set the page title
+  useEffect(() => {
+    document.title = "Celebration Central - Plan Perfect Celebrations";
+  }, []);
+
+  return (
+    <ThemeProvider defaultTheme="system" storageKey="celebration-central-theme">
+      <AnimatePresence mode="wait" initial={false}>
+        <Suspense fallback={<LoadingFallback />}>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<SignUp />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/events" element={<Events />} />
+            <Route path="/event/:id" element={<EventDetails />} />
+            <Route path="/create-event" element={<ProtectedRoute><CreateEvent /></ProtectedRoute>} />
+            <Route path="/edit-event/:id" element={<ProtectedRoute><EditEvent /></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/help" element={<Help />} />
+            <Route path="/blog" element={<Blog />} />
+            <Route path="/ai-assistant" element={<AIAssistant />} />
+            <Route path="/vendors" element={<Vendors />} />
+            <Route path="/vendor/:id" element={<VendorDetails />} />
+            <Route path="/inspiration" element={<Inspiration />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
+      </AnimatePresence>
+
+      {/* Chatbot component visible on all pages */}
+      <Chatbot />
+
+      {/* Toast notifications */}
+      <Toaster />
+      <Sonner />
+    </ThemeProvider>
+  );
+}
 
 export default App;

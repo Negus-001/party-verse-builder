@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { MessageCircle, X, Send, Loader2 } from 'lucide-react';
+import { MessageCircle, X, Send, Loader2, Bot } from 'lucide-react';
 import { chatWithAssistant } from '@/lib/openai';
 import { useToast } from '@/hooks/use-toast';
 
@@ -53,7 +53,9 @@ const Chatbot = () => {
     setIsLoading(true);
 
     try {
+      console.log("Sending message to assistant:", input);
       const response = await chatWithAssistant(input);
+      console.log("Response received:", response);
       
       // Add bot response
       const botMessage: Message = {
@@ -65,6 +67,7 @@ const Chatbot = () => {
       
       setMessages(prev => [...prev, botMessage]);
     } catch (error) {
+      console.error("Error in chatbot:", error);
       toast({
         title: "Error",
         description: "Failed to get a response. Please try again.",
@@ -111,19 +114,22 @@ const Chatbot = () => {
             exit={{ opacity: 0, y: 20, scale: 0.9 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
           >
-            <div className="flex items-center justify-between p-4 border-b bg-accent/30">
+            <div className="flex items-center justify-between p-4 border-b bg-primary/10">
               <div className="flex items-center space-x-2">
                 <div className="rounded-full bg-primary w-8 h-8 flex items-center justify-center">
-                  <MessageCircle className="w-4 h-4 text-primary-foreground" />
+                  <Bot className="w-4 h-4 text-primary-foreground" />
                 </div>
-                <h3 className="font-semibold">Celebration Assistant</h3>
+                <div>
+                  <h3 className="font-semibold text-primary">Celebration Central</h3>
+                  <p className="text-xs text-muted-foreground">AI Event Assistant</p>
+                </div>
               </div>
               <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)}>
                 <X className="w-4 h-4" />
               </Button>
             </div>
             
-            <ScrollArea className="h-[300px] p-4">
+            <ScrollArea className="h-[350px] p-4">
               <div className="flex flex-col space-y-4">
                 {messages.map((message) => (
                   <motion.div
@@ -163,7 +169,7 @@ const Chatbot = () => {
                   value={input} 
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Type your message..."
+                  placeholder="Ask about event planning..."
                   disabled={isLoading}
                   className="flex-1"
                 />

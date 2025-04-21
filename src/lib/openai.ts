@@ -1,5 +1,5 @@
 
-const OPENAI_API_KEY = "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";
+const OPENAI_API_KEY = "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";
 
 interface ChatCompletionRequest {
   model: string;
@@ -46,7 +46,7 @@ export const generateAIEventSuggestions = async (
   `;
 
   const requestBody: ChatCompletionRequest = {
-    model: "gpt-3.5-turbo",
+    model: "gpt-4o",
     messages: [
       {
         role: "system",
@@ -60,6 +60,7 @@ export const generateAIEventSuggestions = async (
   };
 
   try {
+    console.log("Making OpenAI API request for suggestions:", { eventType, requestBody });
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -71,10 +72,12 @@ export const generateAIEventSuggestions = async (
 
     if (!response.ok) {
       const errorData = await response.json();
+      console.error("OpenAI API error response:", errorData);
       throw new Error(`OpenAI API error: ${errorData.error?.message || response.statusText}`);
     }
 
     const data = await response.json() as ChatCompletionResponse;
+    console.log("OpenAI API response received:", data);
     return data.choices[0].message.content;
   } catch (error) {
     console.error("Error generating AI suggestions:", error);
@@ -84,20 +87,23 @@ export const generateAIEventSuggestions = async (
 
 export const generateEventHistory = async (eventType: string): Promise<string> => {
   const prompt = `
-    Provide a brief, engaging history and cultural significance about ${eventType} celebrations.
+    Provide a detailed, engaging history and cultural significance about ${eventType} celebrations.
     Include:
-    1. Brief origin and evolution
-    2. Cultural significance
-    3. Modern practices and traditions
-    4. Why this celebration remains important today
+    1. Origin and historical evolution of this celebration type
+    2. Cultural significance across different societies
+    3. Traditional practices and how they've evolved
+    4. Modern interpretations and importance in today's society
+    5. Interesting facts and traditions associated with this celebration type
+    
+    Write in an engaging, informative style that helps event planners understand the deeper meaning behind this type of celebration.
   `;
 
   const requestBody: ChatCompletionRequest = {
-    model: "gpt-3.5-turbo",
+    model: "gpt-4o",
     messages: [
       {
         role: "system",
-        content: "You are a cultural historian specializing in celebrations and traditions around the world. Provide informative, engaging content that's respectful of all cultures."
+        content: "You are a cultural historian specializing in celebrations and traditions around the world. Provide informative, engaging content that's respectful of all cultures and traditions. Include specific details, historical context, and interesting facts that would help someone planning such an event."
       },
       {
         role: "user",
@@ -107,6 +113,7 @@ export const generateEventHistory = async (eventType: string): Promise<string> =
   };
 
   try {
+    console.log("Making OpenAI API request for event history:", { eventType });
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -118,10 +125,12 @@ export const generateEventHistory = async (eventType: string): Promise<string> =
 
     if (!response.ok) {
       const errorData = await response.json();
+      console.error("OpenAI API error response:", errorData);
       throw new Error(`OpenAI API error: ${errorData.error?.message || response.statusText}`);
     }
 
     const data = await response.json() as ChatCompletionResponse;
+    console.log("OpenAI API response received for event history");
     return data.choices[0].message.content;
   } catch (error) {
     console.error("Error generating event history:", error);
@@ -131,11 +140,11 @@ export const generateEventHistory = async (eventType: string): Promise<string> =
 
 export const chatWithAssistant = async (message: string): Promise<string> => {
   const requestBody: ChatCompletionRequest = {
-    model: "gpt-3.5-turbo",
+    model: "gpt-4o",
     messages: [
       {
         role: "system",
-        content: "You are a helpful event planning assistant for Celebration Central. You provide concise, helpful information about event planning, celebration traditions, and our website services. Keep responses friendly and under 150 words when possible."
+        content: "You are the helpful event planning assistant for Celebration Central. You provide informative, specific answers about event planning, celebration traditions, and our website services. Focus on giving practical advice and specific suggestions for event planning. Always be friendly, professional, and engaging. If asked about the website, explain that Celebration Central is a comprehensive event planning platform that offers AI-powered suggestions, venue selection, guest management, budget tracking, and vendor coordination."
       },
       {
         role: "user",
@@ -145,6 +154,7 @@ export const chatWithAssistant = async (message: string): Promise<string> => {
   };
 
   try {
+    console.log("Making OpenAI API request for chatbot:", { userMessage: message });
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -156,10 +166,12 @@ export const chatWithAssistant = async (message: string): Promise<string> => {
 
     if (!response.ok) {
       const errorData = await response.json();
+      console.error("OpenAI API error response:", errorData);
       throw new Error(`OpenAI API error: ${errorData.error?.message || response.statusText}`);
     }
 
     const data = await response.json() as ChatCompletionResponse;
+    console.log("OpenAI API response received for chatbot");
     return data.choices[0].message.content;
   } catch (error) {
     console.error("Error chatting with assistant:", error);
