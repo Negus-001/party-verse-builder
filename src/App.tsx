@@ -1,4 +1,3 @@
-
 import { Route, Routes } from "react-router-dom";
 import { Suspense, lazy, useEffect } from "react";
 import { useAuth } from "./context/AuthContext";
@@ -8,6 +7,7 @@ import { ThemeProvider } from "./context/ThemeContext";
 import { AnimatePresence } from "framer-motion";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import Chatbot from "./components/chatbot/Chatbot";
+import { LoadingSpinner } from "./components/ui/loading-spinner";
 
 // Lazy-loaded pages
 const Home = lazy(() => import("./pages/Index"));
@@ -35,13 +35,8 @@ const Inspiration = lazy(() => import("./pages/Inspiration"));
 
 // Loading component
 const LoadingFallback = () => (
-  <div className="flex items-center justify-center h-screen w-full bg-gradient-to-b from-background to-accent/5">
-    <div className="space-y-4 flex flex-col items-center">
-      <div className="h-12 w-12 rounded-full border-4 border-t-primary border-r-transparent border-b-primary border-l-transparent animate-spin" />
-      <h2 className="text-xl font-display font-medium animate-pulse">
-        Celebration Central
-      </h2>
-    </div>
+  <div className="fixed inset-0 grid place-items-center bg-background/80 backdrop-blur-sm">
+    <LoadingSpinner size="lg" text="Loading Celebration Central..." />
   </div>
 );
 

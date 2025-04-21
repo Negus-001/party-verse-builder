@@ -1,4 +1,3 @@
-
 const OPENAI_API_KEY = "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";
 
 interface ChatCompletionRequest {
@@ -16,6 +15,20 @@ interface ChatCompletionResponse {
     };
   }[];
 }
+
+const handleOpenAIError = (error: any): string => {
+  console.error("OpenAI API error:", error);
+  
+  if (error.error?.type === "insufficient_quota") {
+    return "Our AI service is currently at capacity. Please try again in a few minutes.";
+  }
+  
+  if (error.error?.code === "rate_limit_exceeded") {
+    return "Too many requests. Please wait a moment before trying again.";
+  }
+  
+  return "I'm having trouble connecting. Please try again in a moment.";
+};
 
 export const generateAIEventSuggestions = async (
   eventType: string, 
@@ -140,11 +153,11 @@ export const generateEventHistory = async (eventType: string): Promise<string> =
 
 export const chatWithAssistant = async (message: string): Promise<string> => {
   const requestBody: ChatCompletionRequest = {
-    model: "gpt-4o",
+    model: "gpt-4o-mini",
     messages: [
       {
         role: "system",
-        content: "You are the helpful event planning assistant for Celebration Central. You provide informative, specific answers about event planning, celebration traditions, and our website services. Focus on giving practical advice and specific suggestions for event planning. Always be friendly, professional, and engaging. If asked about the website, explain that Celebration Central is a comprehensive event planning platform that offers AI-powered suggestions, venue selection, guest management, budget tracking, and vendor coordination."
+        content: "You are the helpful event planning assistant for Celebration Central. You provide informative, specific answers about event planning, celebration traditions, and our website services. Focus on giving practical advice and specific suggestions for event planning. Always be friendly, professional, and engaging."
       },
       {
         role: "user",
@@ -154,7 +167,6 @@ export const chatWithAssistant = async (message: string): Promise<string> => {
   };
 
   try {
-    console.log("Making OpenAI API request for chatbot:", { userMessage: message });
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -166,15 +178,12 @@ export const chatWithAssistant = async (message: string): Promise<string> => {
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error("OpenAI API error response:", errorData);
-      throw new Error(`OpenAI API error: ${errorData.error?.message || response.statusText}`);
+      return handleOpenAIError(errorData);
     }
 
     const data = await response.json() as ChatCompletionResponse;
-    console.log("OpenAI API response received for chatbot");
     return data.choices[0].message.content;
   } catch (error) {
-    console.error("Error chatting with assistant:", error);
-    return "Sorry, I'm having trouble connecting right now. Please try again later.";
+    return handleOpenAIError(error);
   }
 };

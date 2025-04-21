@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -12,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar, Clock, MapPin, Users, Search, Plus, ChevronRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useVirtualizer } from '@tanstack/react-virtual';
 
 const Events = () => {
   const navigate = useNavigate();
@@ -105,11 +105,19 @@ const Events = () => {
     }
   };
 
+  const parentRef = React.useRef<HTMLDivElement>(null);
+  const rowVirtualizer = useVirtualizer({
+    count: filteredEvents.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 350, // Estimated height of each event card
+    overscan: 5
+  });
+
   return (
     <>
       <Navbar />
-
-      <main className="min-h-screen py-24 px-6 transition-colors duration-300">
+      
+      <main className="min-h-screen py-24 px-6 transition-all">
         <motion.div 
           className="container mx-auto"
           initial="hidden"
@@ -149,135 +157,78 @@ const Events = () => {
             </div>
           </motion.div>
 
-          <motion.div variants={itemVariants}>
-            <Tabs defaultValue="all" className="mb-8">
-              <TabsList className="mb-4">
-                <TabsTrigger value="all" className="transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">All Events</TabsTrigger>
-                <TabsTrigger value="upcoming" className="transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Upcoming</TabsTrigger>
-                <TabsTrigger value="past" className="transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Past</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="all" className="space-y-6">
-                {loading ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {[1, 2, 3, 4, 5, 6].map((i) => (
-                      <Card key={i} className="overflow-hidden animate-pulse">
-                        <div className="h-48 bg-muted/50"></div>
-                        <CardContent className="p-5">
-                          <div className="space-y-4">
-                            <Skeleton className="h-4 w-20" />
-                            <Skeleton className="h-6 w-full max-w-[180px]" />
-                            <Skeleton className="h-4 w-full" />
-                            <div className="space-y-2">
-                              <Skeleton className="h-4 w-[140px]" />
-                              <Skeleton className="h-4 w-[120px]" />
-                              <Skeleton className="h-4 w-[100px]" />
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                ) : filteredEvents.length > 0 ? (
-                  <AnimatePresence>
-                    <motion.div 
-                      className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-                      variants={containerVariants}
-                    >
-                      {filteredEvents.map((event) => (
-                        <motion.div
-                          key={event.id}
-                          variants={itemVariants}
-                          whileHover={{ scale: 1.03, y: -5 }}
-                          whileTap={{ scale: 0.98 }}
-                          transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-                          layout
-                          className="card-hover"
-                        >
-                          <Card 
-                            className="event-card overflow-hidden hover:border-primary transition-all duration-300 cursor-pointer"
-                            onClick={() => navigate(`/event/${event.id}`)}
-                          >
-                            {event.image && (
-                              <div className="h-48 overflow-hidden">
-                                <img 
-                                  src={event.image} 
-                                  alt={event.title} 
-                                  className="w-full h-full object-cover hover:scale-110 transition-transform duration-500"
-                                  onError={(e) => {
-                                    (e.target as HTMLImageElement).src = 'https://placehold.co/600x400?text=Celebration+Central';
-                                  }}
-                                />
-                              </div>
-                            )}
-                            <CardContent className="p-5">
-                              <div className="flex justify-between items-start mb-2">
-                                <Badge 
-                                  variant="outline" 
-                                  className={`${getEventTypeColor(event.type)} capitalize`}
-                                >
-                                  {event.type}
-                                </Badge>
-                              </div>
-                              <h3 className="text-xl font-semibold mb-2 line-clamp-1">{event.title}</h3>
-                              <p className="text-sm text-muted-foreground line-clamp-2 mb-4">{event.description}</p>
-                              <div className="space-y-2 text-sm">
-                                <div className="flex items-center text-muted-foreground">
-                                  <Clock size={14} className="mr-2" />
-                                  {formatEventDate(event.date)}
-                                </div>
-                                <div className="flex items-center text-muted-foreground">
-                                  <MapPin size={14} className="mr-2" />
-                                  {event.location}
-                                </div>
-                                <div className="flex items-center text-muted-foreground">
-                                  <Users size={14} className="mr-2" />
-                                  {event.guests} guests
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </motion.div>
-                      ))}
-                    </motion.div>
-                  </AnimatePresence>
-                ) : (
-                  <motion.div 
-                    className="text-center py-12"
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.5 }}
+          <motion.div 
+            ref={parentRef}
+            className="h-[800px] overflow-auto rounded-lg"
+            variants={itemVariants}
+          >
+            <div
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 relative"
+              style={{
+                height: `${rowVirtualizer.getTotalSize()}px`,
+              }}
+            >
+              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                const event = filteredEvents[virtualRow.index];
+                return (
+                  <motion.div
+                    key={event.id}
+                    variants={itemVariants}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
                   >
-                    <div className="bg-gradient-to-br from-primary/20 to-purple-400/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-primary">
-                      <Calendar size={24} className="animate-float" />
-                    </div>
-                    <h3 className="text-lg font-medium mb-2">No celebrations found</h3>
-                    <p className="text-muted-foreground mb-6">
-                      {searchTerm ? 'Try a different search term' : 'Create your first celebration to get started'}
-                    </p>
-                    <Button 
-                      onClick={() => navigate('/create-event')}
-                      className="transition-transform hover:scale-105 duration-200 bg-gradient-to-r from-primary to-purple-500 hover:shadow-lg"
+                    <Card 
+                      className="event-card overflow-hidden hover:border-primary transition-all duration-300 cursor-pointer bg-card/50 backdrop-blur-sm"
+                      onClick={() => navigate(`/event/${event.id}`)}
                     >
-                      <Plus size={16} className="mr-2" />
-                      Create New Celebration
-                    </Button>
+                      {event.image && (
+                        <div className="h-48 overflow-hidden">
+                          <img 
+                            src={event.image} 
+                            alt={event.title} 
+                            className="w-full h-full object-cover hover:scale-110 transition-transform duration-500"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = 'https://placehold.co/600x400?text=Celebration+Central';
+                            }}
+                          />
+                        </div>
+                      )}
+                      <CardContent className="p-5">
+                        <div className="flex justify-between items-start mb-2">
+                          <Badge 
+                            variant="outline" 
+                            className={`${getEventTypeColor(event.type)} capitalize`}
+                          >
+                            {event.type}
+                          </Badge>
+                        </div>
+                        <h3 className="text-xl font-semibold mb-2 line-clamp-1">{event.title}</h3>
+                        <p className="text-sm text-muted-foreground line-clamp-2 mb-4">{event.description}</p>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex items-center text-muted-foreground">
+                            <Clock size={14} className="mr-2" />
+                            {formatEventDate(event.date)}
+                          </div>
+                          <div className="flex items-center text-muted-foreground">
+                            <MapPin size={14} className="mr-2" />
+                            {event.location}
+                          </div>
+                          <div className="flex items-center text-muted-foreground">
+                            <Users size={14} className="mr-2" />
+                            {event.guests} guests
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
                   </motion.div>
-                )}
-              </TabsContent>
-              
-              <TabsContent value="upcoming">
-                <div className="text-center py-12">
-                  <p className="text-muted-foreground">Upcoming events filtering coming soon</p>
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="past">
-                <div className="text-center py-12">
-                  <p className="text-muted-foreground">Past events filtering coming soon</p>
-                </div>
-              </TabsContent>
-            </Tabs>
+                );
+              })}
+            </div>
           </motion.div>
         </motion.div>
       </main>
