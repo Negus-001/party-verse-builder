@@ -81,3 +81,88 @@ export const generateAIEventSuggestions = async (
     return "Sorry, I couldn't generate suggestions at this time. Please try again later.";
   }
 };
+
+export const generateEventHistory = async (eventType: string): Promise<string> => {
+  const prompt = `
+    Provide a brief, engaging history and cultural significance about ${eventType} celebrations.
+    Include:
+    1. Brief origin and evolution
+    2. Cultural significance
+    3. Modern practices and traditions
+    4. Why this celebration remains important today
+  `;
+
+  const requestBody: ChatCompletionRequest = {
+    model: "gpt-3.5-turbo",
+    messages: [
+      {
+        role: "system",
+        content: "You are a cultural historian specializing in celebrations and traditions around the world. Provide informative, engaging content that's respectful of all cultures."
+      },
+      {
+        role: "user",
+        content: prompt
+      }
+    ]
+  };
+
+  try {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`OpenAI API error: ${errorData.error?.message || response.statusText}`);
+    }
+
+    const data = await response.json() as ChatCompletionResponse;
+    return data.choices[0].message.content;
+  } catch (error) {
+    console.error("Error generating event history:", error);
+    return "Sorry, I couldn't retrieve information about this celebration at this time.";
+  }
+};
+
+export const chatWithAssistant = async (message: string): Promise<string> => {
+  const requestBody: ChatCompletionRequest = {
+    model: "gpt-3.5-turbo",
+    messages: [
+      {
+        role: "system",
+        content: "You are a helpful event planning assistant for Celebration Central. You provide concise, helpful information about event planning, celebration traditions, and our website services. Keep responses friendly and under 150 words when possible."
+      },
+      {
+        role: "user",
+        content: message
+      }
+    ]
+  };
+
+  try {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`OpenAI API error: ${errorData.error?.message || response.statusText}`);
+    }
+
+    const data = await response.json() as ChatCompletionResponse;
+    return data.choices[0].message.content;
+  } catch (error) {
+    console.error("Error chatting with assistant:", error);
+    return "Sorry, I'm having trouble connecting right now. Please try again later.";
+  }
+};

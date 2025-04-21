@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { EventProvider } from "@/context/EventContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
+import Chatbot from "@/components/chatbot/Chatbot";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
@@ -90,6 +91,7 @@ const App = () => (
                 <Route path="/help" element={<Help />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
+              <Chatbot />
             </BrowserRouter>
           </EventProvider>
         </AuthProvider>

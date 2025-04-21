@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { collection, addDoc, query, getDocs, doc, getDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { db, auth, formatTimestamp, formatEventDate } from '@/lib/firebase';
+import { db, auth, formatTimestamp } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 
 // Define event types
@@ -16,11 +16,13 @@ export interface EventItem {
   createdBy: string;
   createdAt: string;
   image?: string;
+  budget?: number;
+  preferences?: string;
 }
 
 interface FirestoreEventItem {
   title: string;
-  date: string;
+  date: string | Timestamp;
   location: string;
   description: string;
   type: string;
@@ -28,6 +30,8 @@ interface FirestoreEventItem {
   createdBy: string;
   createdAt: Timestamp | null;
   image?: string;
+  budget?: number;
+  preferences?: string;
 }
 
 interface EventContextType {
@@ -48,6 +52,33 @@ export const useEvents = () => {
     throw new Error('useEvents must be used within an EventProvider');
   }
   return context;
+};
+
+// Helper function to safely format dates from Firestore
+const formatEventDate = (date: any): string => {
+  if (!date) return 'No date specified';
+  
+  try {
+    // If it's a Firestore timestamp object with seconds
+    if (date && typeof date === 'object' && 'seconds' in date) {
+      return new Date(date.seconds * 1000).toLocaleDateString();
+    }
+    
+    // If it's a string date
+    if (typeof date === 'string') {
+      return new Date(date).toLocaleDateString();
+    }
+    
+    // If it's already a Date object
+    if (date instanceof Date) {
+      return date.toLocaleDateString();
+    }
+    
+    return 'Invalid date format';
+  } catch (error) {
+    console.error("Error formatting date:", error, date);
+    return 'Date error';
+  }
 };
 
 export const EventProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -71,17 +102,22 @@ export const EventProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           createdAtStr = formatTimestamp(data.createdAt);
         }
         
+        // Format date safely
+        const formattedDate = formatEventDate(data.date);
+        
         return {
           id: doc.id,
           title: data.title || 'Untitled Event',
-          date: data.date || 'No date specified',
+          date: formattedDate,
           location: data.location || 'No location specified',
           description: data.description || 'No description',
           type: data.type || 'other',
           guests: data.guests || 0,
           createdBy: data.createdBy || '',
           createdAt: createdAtStr,
-          image: data.image
+          image: data.image,
+          budget: data.budget,
+          preferences: data.preferences
         };
       });
       
