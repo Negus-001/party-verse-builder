@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar, Clock, MapPin, Users, Search, Plus, ChevronRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { getEventTypeColor, formatEventDate } from '@/utils/eventHelpers';
 
 const Events = () => {
   const navigate = useNavigate();
@@ -19,7 +20,6 @@ const Events = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<string>('all');
   
-  // Filter events based on search term and filter
   const filteredEvents = events.filter(event => {
     const matchesSearch = 
       event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
