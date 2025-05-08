@@ -1,5 +1,5 @@
 
-import { Route, Routes } from "react-router-dom";
+import { Route, Routes, useNavigate } from "react-router-dom";
 import { Suspense, lazy, useEffect } from "react";
 import { useAuth } from "./context/AuthContext";
 import { Toaster } from "./components/ui/toaster";

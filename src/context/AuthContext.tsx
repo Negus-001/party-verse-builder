@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, onAuthStateChanged, getDoc, doc } from 'firebase/auth';
+import { User, onAuthStateChanged } from 'firebase/auth';
+import { getDoc, doc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 
 // Define user roles

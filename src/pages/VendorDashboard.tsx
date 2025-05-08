@@ -1,369 +1,394 @@
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
-import { useAuth } from '@/context/AuthContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { Separator } from '@/components/ui/separator';
+import { 
+  Package, 
+  Calendar, 
+  DollarSign, 
+  MessageCircle, 
+  Settings, 
+  ChevronRight,
+  Users
+} from 'lucide-react';
 import { db } from '@/lib/firebase';
-import { getEventTypeColor, formatEventDate } from '@/utils/eventHelpers';
-import { Calendar, Loader2, Package, Settings, Star, Users } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { toast } from '@/hooks/use-toast';
+import { collection, getDocs } from 'firebase/firestore';
+import { useAuth } from '@/context/AuthContext';
+
+interface VendorEvent {
+  id: string;
+  title?: string;
+  date?: string | Date;
+  type?: string;
+  location?: string;
+  status?: string;
+}
 
 interface VendorService {
-  id?: string;
+  id: string;
   name: string;
   description: string;
-  price: string;
-  category: string;
+  price: number;
+  isActive: boolean;
 }
 
 const VendorDashboard = () => {
-  const { currentUser, userData, isVendor, loading } = useAuth();
-  const navigate = useNavigate();
-  const [matchedEvents, setMatchedEvents] = useState<any[]>([]);
-  const [services, setServices] = useState<VendorService[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [newService, setNewService] = useState<VendorService>({
-    name: '',
-    description: '',
-    price: '',
-    category: 'catering'
-  });
-
-  useEffect(() => {
-    // Redirect non-vendor users
-    if (!loading && !isVendor) {
-      navigate('/dashboard');
+  const [activeTab, setActiveTab] = useState("overview");
+  const [events, setEvents] = useState<VendorEvent[]>([]);
+  const [pendingEvents, setPendingEvents] = useState<VendorEvent[]>([]);
+  const [services, setServices] = useState<VendorService[]>([
+    {
+      id: "1",
+      name: "Wedding Photography",
+      description: "Professional wedding photography services",
+      price: 1200,
+      isActive: true
+    },
+    {
+      id: "2",
+      name: "DJ Services",
+      description: "Music and entertainment for your event",
+      price: 800,
+      isActive: true
+    },
+    {
+      id: "3",
+      name: "Catering",
+      description: "Delicious food for your guests",
+      price: 35, // per person
+      isActive: false
     }
-  }, [isVendor, loading, navigate]);
+  ]);
 
+  const { currentUser, userData } = useAuth();
+  
   useEffect(() => {
-    const fetchVendorData = async () => {
-      if (!isVendor || !currentUser) return;
+    const fetchEvents = async () => {
+      // Demo data for now - in real app, this would fetch from Firestore
+      // based on the vendor's services
+      setEvents([
+        {
+          id: "event1",
+          title: "Johnson Wedding",
+          date: "2025-06-15",
+          type: "Wedding",
+          location: "Grand Hotel",
+          status: "confirmed"
+        },
+        {
+          id: "event2",
+          title: "Tech Corp Annual Party",
+          date: "2025-05-20",
+          type: "Corporate",
+          location: "Tech Corp HQ",
+          status: "confirmed"
+        }
+      ]);
       
-      setIsLoading(true);
-      try {
-        // Fetch vendor services
-        const servicesQuery = query(
-          collection(db, 'vendorServices'), 
-          where('vendorId', '==', currentUser.uid)
-        );
-        const servicesSnapshot = await getDocs(servicesQuery);
-        const servicesData = servicesSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as VendorService[];
-        setServices(servicesData);
-
-        // Fetch events that match vendor services
-        // In a real app, this would be a more complex query
-        // For demo, we'll get all events and filter client-side
-        const eventsQuery = query(collection(db, 'events'));
-        const eventsSnapshot = await getDocs(eventsQuery);
-        const eventsData = eventsSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        
-        // Filter events that match vendor services
-        // This is a simple implementation - in a real app you'd have a proper matching algorithm
-        const vendorCategories = userData?.services || [];
-        const matchingEvents = eventsData.filter(event => 
-          vendorCategories.includes(event.type) || 
-          (event.preferences && vendorCategories.some(cat => 
-            event.preferences.toLowerCase().includes(cat.toLowerCase())
-          ))
-        );
-        
-        setMatchedEvents(matchingEvents);
-      } catch (error) {
-        console.error("Error fetching vendor data:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load vendor data. Please try again.",
-          variant: "destructive"
-        });
-      } finally {
-        setIsLoading(false);
-      }
+      setPendingEvents([
+        {
+          id: "event3",
+          title: "Smith Graduation",
+          date: "2025-07-10",
+          type: "Graduation",
+          location: "City University",
+          status: "pending"
+        }
+      ]);
     };
-
-    fetchVendorData();
-  }, [isVendor, currentUser, userData]);
-
-  const handleServiceChange = (field: string, value: string) => {
-    setNewService(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleAddService = () => {
-    // In a real app, you'd save this to Firestore
-    // For the demo, we'll just add it to local state
-    const serviceWithId = {
-      ...newService,
-      id: `temp-${Date.now()}`
-    };
-    setServices(prev => [...prev, serviceWithId]);
     
-    toast({
-      title: "Service Added",
-      description: `${newService.name} has been added to your services.`
-    });
-    
-    // Reset form
-    setNewService({
-      name: '',
-      description: '',
-      price: '',
-      category: 'catering'
-    });
+    fetchEvents();
+  }, []);
+
+  const handleAcceptEvent = (eventId: string) => {
+    // Move from pending to confirmed
+    const event = pendingEvents.find(e => e.id === eventId);
+    if (event) {
+      setPendingEvents(pendingEvents.filter(e => e.id !== eventId));
+      setEvents([...events, {...event, status: "confirmed"}]);
+    }
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!isVendor) {
-    return null; // Will redirect in useEffect
-  }
+  
+  const handleDeclineEvent = (eventId: string) => {
+    // Remove from pending
+    setPendingEvents(pendingEvents.filter(e => e.id !== eventId));
+  };
+  
+  const handleToggleService = (serviceId: string) => {
+    setServices(services.map(service => 
+      service.id === serviceId 
+        ? { ...service, isActive: !service.isActive } 
+        : service
+    ));
+  };
 
   return (
     <>
       <Navbar />
-      <main className="pt-24 pb-16 min-h-screen bg-gradient-to-b from-background via-accent/20 to-background">
-        <div className="container mx-auto px-4">
+      
+      <main className="min-h-screen py-24 px-6 bg-gradient-to-b from-background via-accent/20 to-background transition-all">
+        <div className="container mx-auto max-w-6xl">
           <div className="mb-8">
-            <h1 className="text-3xl md:text-4xl font-display font-bold">Vendor Dashboard</h1>
-            <p className="text-muted-foreground">Manage your services and view matched events</p>
+            <h1 className="text-4xl font-display font-bold mb-2">Vendor Dashboard</h1>
+            <p className="text-muted-foreground">Manage your services and event bookings</p>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <Card className="bg-card/50 backdrop-blur-sm">
-              <CardContent className="pt-6">
-                <div className="flex items-center">
-                  <div className="bg-primary/10 p-2 rounded-full mr-4">
-                    <Package className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Your Services</p>
-                    <h3 className="text-2xl font-bold">{services.length}</h3>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-card/50 backdrop-blur-sm">
-              <CardContent className="pt-6">
-                <div className="flex items-center">
-                  <div className="bg-primary/10 p-2 rounded-full mr-4">
-                    <Calendar className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Matched Events</p>
-                    <h3 className="text-2xl font-bold">{matchedEvents.length}</h3>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-card/50 backdrop-blur-sm">
-              <CardContent className="pt-6">
-                <div className="flex items-center">
-                  <div className="bg-primary/10 p-2 rounded-full mr-4">
-                    <Star className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Rating</p>
-                    <h3 className="text-2xl font-bold">4.8/5</h3>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Tabs defaultValue="services" className="w-full">
-            <TabsList className="w-full max-w-md mx-auto mb-8">
-              <TabsTrigger value="services" className="flex-1">Your Services</TabsTrigger>
-              <TabsTrigger value="events" className="flex-1">Matched Events</TabsTrigger>
-              <TabsTrigger value="add" className="flex-1">Add Service</TabsTrigger>
+          
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+            <TabsList className="grid grid-cols-4 w-full max-w-2xl">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="events">Events</TabsTrigger>
+              <TabsTrigger value="services">Services</TabsTrigger>
+              <TabsTrigger value="settings">Settings</TabsTrigger>
             </TabsList>
             
-            <Card className="bg-card/50 backdrop-blur-sm border-2">
-              <TabsContent value="services" className="m-0">
-                <CardHeader>
-                  <CardTitle>Your Services</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {isLoading ? (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <TabsContent value="overview" className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Upcoming Events</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{events.length}</div>
+                    <p className="text-xs text-muted-foreground">
+                      +{pendingEvents.length} pending approval
+                    </p>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Active Services</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {services.filter(s => s.isActive).length}
                     </div>
-                  ) : services.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground mb-4">You haven't added any services yet.</p>
-                      <Button onClick={() => document.querySelector('[data-value="add"]')?.click()}>
-                        Add Your First Service
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {services.map((service) => (
-                        <Card key={service.id} className="overflow-hidden">
-                          <CardContent className="p-6">
-                            <div className="flex justify-between items-start">
-                              <h3 className="font-semibold text-lg mb-2">{service.name}</h3>
-                              <Badge>{service.category}</Badge>
+                    <p className="text-xs text-muted-foreground">
+                      of {services.length} total services
+                    </p>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Revenue (YTD)</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">$8,450</div>
+                    <p className="text-xs text-muted-foreground">
+                      +12% from last year
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Recent Events</CardTitle>
+                    <CardDescription>Your upcoming event bookings</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {events.length > 0 ? (
+                      <div className="space-y-4">
+                        {events.slice(0, 3).map(event => (
+                          <div key={event.id} className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium">{event.title}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {new Date(event.date as string).toLocaleDateString()}, {event.location}
+                              </p>
                             </div>
-                            <p className="text-muted-foreground mb-4 text-sm">{service.description}</p>
-                            <div className="flex justify-between items-center">
-                              <p className="font-semibold">${service.price}</p>
-                              <Button variant="outline" size="sm">Edit</Button>
+                            <Badge>{event.type}</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-center text-muted-foreground py-4">
+                        No upcoming events
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Pending Approvals</CardTitle>
+                    <CardDescription>Events waiting for your confirmation</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {pendingEvents.length > 0 ? (
+                      <div className="space-y-4">
+                        {pendingEvents.map(event => (
+                          <div key={event.id} className="flex flex-col space-y-2 border-b pb-3">
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <p className="font-medium">{event.title}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  {new Date(event.date as string).toLocaleDateString()}, {event.location}
+                                </p>
+                              </div>
+                              <Badge variant="outline">{event.type}</Badge>
                             </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </TabsContent>
-
-              <TabsContent value="events" className="m-0">
-                <CardHeader>
-                  <CardTitle>Events Matching Your Services</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {isLoading ? (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                    </div>
-                  ) : matchedEvents.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground">No matching events found at the moment.</p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {matchedEvents.map((event) => (
-                        <Card key={event.id} className="overflow-hidden">
-                          <div className="h-36 bg-accent relative">
-                            {event.image && (
-                              <img
-                                src={event.image}
-                                alt={event.title}
-                                className="w-full h-full object-cover"
-                              />
-                            )}
-                            <div className="absolute top-2 right-2">
-                              <Badge className={getEventTypeColor(event.type)}>
-                                {event.type}
-                              </Badge>
+                            <div className="flex gap-2 justify-end">
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => handleDeclineEvent(event.id)}
+                              >
+                                Decline
+                              </Button>
+                              <Button 
+                                size="sm"
+                                onClick={() => handleAcceptEvent(event.id)}
+                              >
+                                Accept
+                              </Button>
                             </div>
                           </div>
-                          <CardContent className="p-6">
-                            <h3 className="font-semibold text-lg mb-2">{event.title}</h3>
-                            <div className="space-y-2 text-sm">
-                              <div className="flex items-center text-muted-foreground">
-                                <Calendar size={14} className="mr-2" />
-                                {formatEventDate(event.date)}
-                              </div>
-                              <div className="flex items-center text-muted-foreground">
-                                <Users size={14} className="mr-2" />
-                                {event.guests} guests
-                              </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-center text-muted-foreground py-4">
+                        No pending approvals
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="events" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Event Calendar</CardTitle>
+                  <CardDescription>Your schedule of confirmed events</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {events.map(event => (
+                      <div key={event.id} className="flex items-center justify-between border-b pb-3">
+                        <div className="flex items-start gap-4">
+                          <div className="bg-primary/10 rounded-md p-2 text-center min-w-16">
+                            <div className="text-xs uppercase">
+                              {new Date(event.date as string).toLocaleDateString(undefined, { month: 'short' })}
                             </div>
-                            <div className="mt-4 flex justify-between items-center">
-                              <Badge variant="outline" className="bg-primary/10">
-                                Match: {userData?.services?.includes(event.type) ? '100%' : '80%'}
-                              </Badge>
-                              <Button variant="outline" size="sm">Contact</Button>
+                            <div className="text-xl font-bold">
+                              {new Date(event.date as string).getDate()}
                             </div>
-                          </CardContent>
-                        </Card>
-                      ))}
+                          </div>
+                          <div>
+                            <p className="font-semibold">{event.title}</p>
+                            <p className="text-sm text-muted-foreground">{event.location}</p>
+                            <Badge className="mt-1" variant="outline">{event.type}</Badge>
+                          </div>
+                        </div>
+                        <Button variant="ghost" size="icon">
+                          <ChevronRight />
+                          <span className="sr-only">Event details</span>
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {events.length === 0 && (
+                    <div className="text-center py-8">
+                      <Calendar className="mx-auto h-12 w-12 text-muted-foreground" />
+                      <h3 className="mt-2 font-medium">No events found</h3>
+                      <p className="text-muted-foreground">You don't have any events booked yet.</p>
                     </div>
                   )}
                 </CardContent>
-              </TabsContent>
-
-              <TabsContent value="add" className="m-0">
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="services" className="space-y-6">
+              <Card>
                 <CardHeader>
-                  <CardTitle>Add New Service</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Your Services</CardTitle>
+                      <CardDescription>Manage the services you offer</CardDescription>
+                    </div>
+                    <Button>Add New Service</Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-6 max-w-xl mx-auto">
-                    <div className="space-y-2">
-                      <Label htmlFor="service-name">Service Name</Label>
-                      <Input 
-                        id="service-name" 
-                        placeholder="e.g., Wedding Photography Package" 
-                        value={newService.name}
-                        onChange={(e) => handleServiceChange('name', e.target.value)}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="service-category">Category</Label>
-                      <Select 
-                        value={newService.category}
-                        onValueChange={(value) => handleServiceChange('category', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="catering">Catering</SelectItem>
-                          <SelectItem value="photography">Photography</SelectItem>
-                          <SelectItem value="venue">Venue</SelectItem>
-                          <SelectItem value="decoration">Decoration</SelectItem>
-                          <SelectItem value="entertainment">Entertainment</SelectItem>
-                          <SelectItem value="transportation">Transportation</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="service-description">Description</Label>
-                      <Textarea 
-                        id="service-description" 
-                        placeholder="Describe your service in detail"
-                        rows={4}
-                        value={newService.description}
-                        onChange={(e) => handleServiceChange('description', e.target.value)}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="service-price">Price (USD)</Label>
-                      <Input 
-                        id="service-price" 
-                        placeholder="e.g., 499.99" 
-                        type="text"
-                        value={newService.price}
-                        onChange={(e) => handleServiceChange('price', e.target.value)}
-                      />
-                    </div>
-
-                    <Button onClick={handleAddService} className="w-full">
-                      Add Service
-                    </Button>
+                  <div className="space-y-4">
+                    {services.map(service => (
+                      <div key={service.id} className="flex items-center justify-between border-b pb-3">
+                        <div>
+                          <div className="font-semibold">{service.name}</div>
+                          <div className="text-sm text-muted-foreground">{service.description}</div>
+                          <div className="font-medium mt-1">${service.price.toFixed(2)}</div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <Badge variant={service.isActive ? "default" : "outline"}>
+                            {service.isActive ? "Active" : "Inactive"}
+                          </Badge>
+                          <Button 
+                            variant="outline"
+                            onClick={() => handleToggleService(service.id)}
+                          >
+                            {service.isActive ? "Disable" : "Enable"}
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </CardContent>
-              </TabsContent>
-            </Card>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="settings" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Vendor Profile</CardTitle>
+                  <CardDescription>Manage your business information</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Business Name</label>
+                    <input 
+                      type="text" 
+                      className="w-full p-2 rounded border"
+                      value="Celebrations & Co."
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Description</label>
+                    <textarea 
+                      className="w-full p-2 rounded border" 
+                      rows={3}
+                      value="We provide premium event services for all types of celebrations."
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Contact Email</label>
+                    <input 
+                      type="email" 
+                      className="w-full p-2 rounded border"
+                      value="contact@celebrationsco.com"
+                    />
+                  </div>
+                  
+                  <Button className="mt-4">Save Changes</Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
           </Tabs>
         </div>
       </main>
+      
       <Footer />
     </>
   );

@@ -1,353 +1,378 @@
-
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
-import { useAuth } from '@/context/AuthContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { getEventTypeColor, formatEventDate } from '@/utils/eventHelpers';
-import { EventItem } from '@/context/EventContext';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { usersIcon, Calendar, CheckCheck, Clock, Database, Loader2, MailCheck, Settings, ShieldAlert, User, Users } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { 
+  Users as UsersIcon, 
+  Calendar, 
+  DollarSign, 
+  Activity, 
+  Settings, 
+  AlertTriangle,
+  Check,
+  X
+} from 'lucide-react';
+import { db } from '@/lib/firebase';
+import { collection, getDocs } from 'firebase/firestore';
+import { useAuth } from '@/context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const AdminDashboard = () => {
-  const { currentUser, isAdmin, loading } = useAuth();
-  const navigate = useNavigate();
-  const [events, setEvents] = useState<EventItem[]>([]);
-  const [users, setUsers] = useState<any[]>([]);
-  const [vendors, setVendors] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    // Redirect non-admin users
-    if (!loading && !isAdmin) {
-      navigate('/dashboard');
+  const [activeTab, setActiveTab] = useState("overview");
+  const [userCount, setUserCount] = useState(0);
+  const [eventCount, setEventCount] = useState(0);
+  const [revenue, setRevenue] = useState(0);
+  const [recentUsers, setRecentUsers] = useState([
+    {
+      id: "user1",
+      name: "John Doe",
+      email: "john.doe@example.com",
+      role: "user",
+      status: "active"
+    },
+    {
+      id: "user2",
+      name: "Jane Smith",
+      email: "jane.smith@example.com",
+      role: "admin",
+      status: "active"
+    },
+    {
+      id: "user3",
+      name: "Alice Johnson",
+      email: "alice.johnson@example.com",
+      role: "vendor",
+      status: "pending"
     }
-  }, [isAdmin, loading, navigate]);
+  ]);
+  const [recentEvents, setRecentEvents] = useState([
+    {
+      id: "event1",
+      title: "Summer Wedding",
+      date: "2024-07-15",
+      type: "Wedding",
+      status: "confirmed"
+    },
+    {
+      id: "event2",
+      title: "Corporate Gala",
+      date: "2024-08-20",
+      type: "Corporate",
+      status: "confirmed"
+    },
+    {
+      id: "event3",
+      title: "Charity Ball",
+      date: "2024-09-10",
+      type: "Charity",
+      status: "pending"
+    }
+  ]);
+
+  const { currentUser } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
+    // Fetch data from Firestore
     const fetchData = async () => {
-      if (!isAdmin) return;
-      
-      setIsLoading(true);
       try {
-        // Fetch all events
-        const eventsQuery = query(collection(db, 'events'), orderBy('createdAt', 'desc'));
-        const eventsSnapshot = await getDocs(eventsQuery);
-        const eventsData = eventsSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        } as EventItem));
-        setEvents(eventsData);
+        // Fetch users
+        const usersCollection = collection(db, 'users');
+        const usersSnapshot = await getDocs(usersCollection);
+        setUserCount(usersSnapshot.size);
 
-        // Fetch all users
-        const usersQuery = query(collection(db, 'users'));
-        const usersSnapshot = await getDocs(usersQuery);
-        const usersData = usersSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setUsers(usersData);
+        // Fetch events (replace 'events' with your actual collection name)
+        const eventsCollection = collection(db, 'events');
+        const eventsSnapshot = await getDocs(eventsCollection);
+        setEventCount(eventsSnapshot.size);
 
-        // Fetch all vendors
-        const vendorsQuery = query(collection(db, 'users'), 
-          // In a real app, you would use where('role', '==', 'vendor')
-          // But for demo purposes, we'll just use the entire users collection
-        );
-        const vendorsSnapshot = await getDocs(vendorsQuery);
-        const vendorsData = vendorsSnapshot.docs
-          .filter(doc => doc.data().role === 'vendor')
-          .map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-        setVendors(vendorsData);
+        // Calculate total revenue (replace with your actual logic)
+        setRevenue(50000); // Example revenue
       } catch (error) {
-        console.error("Error fetching admin data:", error);
-      } finally {
-        setIsLoading(false);
+        console.error("Error fetching data:", error);
       }
     };
 
     fetchData();
-  }, [isAdmin]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!isAdmin) {
-    return null; // Will redirect in useEffect
-  }
+  }, []);
 
   return (
     <>
       <Navbar />
-      <main className="pt-24 pb-16 min-h-screen bg-gradient-to-b from-background via-accent/20 to-background">
-        <div className="container mx-auto px-4">
+      
+      <main className="min-h-screen py-24 px-6 bg-gradient-to-b from-background via-accent/20 to-background transition-all">
+        <div className="container mx-auto max-w-6xl">
           <div className="mb-8">
-            <h1 className="text-3xl md:text-4xl font-display font-bold">Admin Dashboard</h1>
-            <p className="text-muted-foreground">Manage events, users, and vendors</p>
+            <h1 className="text-4xl font-display font-bold mb-2">Admin Dashboard</h1>
+            <p className="text-muted-foreground">Manage platform statistics and user accounts</p>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <Card className="bg-card/50 backdrop-blur-sm">
-              <CardContent className="pt-6">
-                <div className="flex items-center">
-                  <div className="bg-primary/10 p-2 rounded-full mr-4">
-                    <Calendar className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Events</p>
-                    <h3 className="text-2xl font-bold">{events.length}</h3>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-card/50 backdrop-blur-sm">
-              <CardContent className="pt-6">
-                <div className="flex items-center">
-                  <div className="bg-primary/10 p-2 rounded-full mr-4">
-                    <Users className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Users</p>
-                    <h3 className="text-2xl font-bold">{users.length}</h3>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-card/50 backdrop-blur-sm">
-              <CardContent className="pt-6">
-                <div className="flex items-center">
-                  <div className="bg-primary/10 p-2 rounded-full mr-4">
-                    <ShieldAlert className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Vendors</p>
-                    <h3 className="text-2xl font-bold">{vendors.length}</h3>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Tabs defaultValue="events" className="w-full">
-            <TabsList className="w-full max-w-md mx-auto mb-8">
-              <TabsTrigger value="events" className="flex-1">Events</TabsTrigger>
-              <TabsTrigger value="users" className="flex-1">Users</TabsTrigger>
-              <TabsTrigger value="vendors" className="flex-1">Vendors</TabsTrigger>
+          
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+            <TabsList className="grid grid-cols-4 w-full max-w-2xl">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="users">Users</TabsTrigger>
+              <TabsTrigger value="events">Events</TabsTrigger>
+              <TabsTrigger value="settings">Settings</TabsTrigger>
             </TabsList>
             
-            <Card className="bg-card/50 backdrop-blur-sm border-2">
-              <TabsContent value="events" className="m-0">
-                <CardHeader>
-                  <CardTitle>All Events</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {isLoading ? (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Event Title</TableHead>
-                            <TableHead>Type</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Creator</TableHead>
-                            <TableHead>Guests</TableHead>
-                            <TableHead>Action</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {events.length === 0 ? (
-                            <TableRow>
-                              <TableCell colSpan={6} className="text-center py-8">
-                                No events found
-                              </TableCell>
-                            </TableRow>
-                          ) : (
-                            events.map((event) => (
-                              <TableRow key={event.id}>
-                                <TableCell className="font-medium">{event.title}</TableCell>
-                                <TableCell>
-                                  <Badge className={getEventTypeColor(event.type)}>
-                                    {event.type}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell>{formatEventDate(event.date)}</TableCell>
-                                <TableCell>{event.createdBy}</TableCell>
-                                <TableCell>{event.guests}</TableCell>
-                                <TableCell>
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm" 
-                                    onClick={() => navigate(`/event/${event.id}`)}
-                                  >
-                                    View
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            ))
-                          )}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
-                </CardContent>
-              </TabsContent>
-
-              <TabsContent value="users" className="m-0">
+            <TabsContent value="overview" className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{userCount}</div>
+                    <p className="text-xs text-muted-foreground">
+                      {recentUsers.filter(user => user.status === 'pending').length} pending approval
+                    </p>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Total Events</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{eventCount}</div>
+                    <p className="text-xs text-muted-foreground">
+                      {recentEvents.filter(event => event.status === 'pending').length} pending confirmation
+                    </p>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">${revenue}</div>
+                    <p className="text-xs text-muted-foreground">
+                      +12% from last month
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Recent Users</CardTitle>
+                    <CardDescription>New users on the platform</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {recentUsers.length > 0 ? (
+                      <div className="space-y-4">
+                        {recentUsers.map(user => (
+                          <div key={user.id} className="flex items-center justify-between">
+                            <div className="flex items-center space-x-4">
+                              <Avatar>
+                                <AvatarImage src={`https://api.dicebear.com/7.x/pixel-art/svg?seed=${user.name}`} />
+                                <AvatarFallback>{user.name.substring(0, 2)}</AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="font-medium">{user.name}</p>
+                                <p className="text-sm text-muted-foreground">{user.email}</p>
+                              </div>
+                            </div>
+                            <Badge variant="secondary">{user.role}</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-center text-muted-foreground py-4">
+                        No recent users
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Recent Events</CardTitle>
+                    <CardDescription>Recently created events</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {recentEvents.length > 0 ? (
+                      <div className="space-y-4">
+                        {recentEvents.map(event => (
+                          <div key={event.id} className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium">{event.title}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {new Date(event.date).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <Badge variant="outline">{event.type}</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-center text-muted-foreground py-4">
+                        No recent events
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="users" className="space-y-6">
+              <Card>
                 <CardHeader>
                   <CardTitle>User Management</CardTitle>
+                  <CardDescription>View and manage user accounts</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {isLoading ? (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>User</TableHead>
-                            <TableHead>Email</TableHead>
-                            <TableHead>Role</TableHead>
-                            <TableHead>Joined</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Action</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {users.length === 0 ? (
-                            <TableRow>
-                              <TableCell colSpan={6} className="text-center py-8">
-                                No users found
-                              </TableCell>
-                            </TableRow>
-                          ) : (
-                            users.map((user) => (
-                              <TableRow key={user.id}>
-                                <TableCell className="font-medium">
-                                  <div className="flex items-center">
-                                    <Avatar className="h-8 w-8 mr-2">
-                                      <AvatarFallback>{user.email?.charAt(0) || 'U'}</AvatarFallback>
-                                    </Avatar>
-                                    <span>{user.displayName || 'User'}</span>
-                                  </div>
-                                </TableCell>
-                                <TableCell>{user.email}</TableCell>
-                                <TableCell>
-                                  <Badge variant={user.role === 'admin' ? 'destructive' : user.role === 'vendor' ? 'outline' : 'secondary'}>
-                                    {user.role || 'user'}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell>{user.createdAt ? new Date(user.createdAt.seconds * 1000).toLocaleDateString() : 'Unknown'}</TableCell>
-                                <TableCell>
-                                  <Badge variant="outline" className="bg-green-100 text-green-800">
-                                    Active
-                                  </Badge>
-                                </TableCell>
-                                <TableCell>
-                                  <Button variant="outline" size="sm">Manage</Button>
-                                </TableCell>
-                              </TableRow>
-                            ))
-                          )}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead>
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Name
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Email
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Role
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                          </th>
+                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {recentUsers.map(user => (
+                          <tr key={user.id}>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-500">{user.email}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <Badge variant="secondary">{user.role}</Badge>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              {user.status === 'active' ? (
+                                <Badge className="bg-green-100 text-green-800">Active</Badge>
+                              ) : (
+                                <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right">
+                              <Button size="sm" variant="outline">Edit</Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </CardContent>
-              </TabsContent>
-
-              <TabsContent value="vendors" className="m-0">
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="events" className="space-y-6">
+              <Card>
                 <CardHeader>
-                  <CardTitle>Vendor Management</CardTitle>
+                  <CardTitle>Event Management</CardTitle>
+                  <CardDescription>View and manage events</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {isLoading ? (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Vendor</TableHead>
-                            <TableHead>Services</TableHead>
-                            <TableHead>Contact</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Action</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {vendors.length === 0 ? (
-                            <TableRow>
-                              <TableCell colSpan={5} className="text-center py-8">
-                                No vendors found
-                              </TableCell>
-                            </TableRow>
-                          ) : (
-                            vendors.map((vendor) => (
-                              <TableRow key={vendor.id}>
-                                <TableCell className="font-medium">
-                                  <div className="flex items-center">
-                                    <Avatar className="h-8 w-8 mr-2">
-                                      <AvatarImage src={vendor.profileImage} />
-                                      <AvatarFallback>{vendor.businessName?.charAt(0) || 'V'}</AvatarFallback>
-                                    </Avatar>
-                                    <span>{vendor.businessName || vendor.displayName || 'Vendor'}</span>
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex flex-wrap gap-1">
-                                    {vendor.services?.map((service: string) => (
-                                      <Badge key={service} variant="outline" className="bg-primary/10 text-primary">{service}</Badge>
-                                    )) || 'No services listed'}
-                                  </div>
-                                </TableCell>
-                                <TableCell>{vendor.email}</TableCell>
-                                <TableCell>
-                                  <Badge variant={vendor.verified ? 'default' : 'outline'} className={vendor.verified ? 'bg-green-100 text-green-800' : ''}>
-                                    {vendor.verified ? 'Verified' : 'Pending'}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell>
-                                  <Button variant="outline" size="sm" onClick={() => navigate(`/vendor/${vendor.id}`)}>
-                                    View Profile
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            ))
-                          )}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead>
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Title
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Date
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Type
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                          </th>
+                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {recentEvents.map(event => (
+                          <tr key={event.id}>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900">{event.title}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-500">{new Date(event.date).toLocaleDateString()}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <Badge variant="secondary">{event.type}</Badge>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              {event.status === 'confirmed' ? (
+                                <Badge className="bg-green-100 text-green-800">Confirmed</Badge>
+                              ) : (
+                                <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right">
+                              <Button size="sm" variant="outline">Edit</Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </CardContent>
-              </TabsContent>
-            </Card>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="settings" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Platform Settings</CardTitle>
+                  <CardDescription>Manage general settings</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Site Name</label>
+                    <input 
+                      type="text" 
+                      className="w-full p-2 rounded border"
+                      value="Celebration Central"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Default Theme</label>
+                    <select className="w-full p-2 rounded border">
+                      <option>Light</option>
+                      <option>Dark</option>
+                      <option>System</option>
+                    </select>
+                  </div>
+                  
+                  <Button>Save Changes</Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
           </Tabs>
         </div>
       </main>
+      
       <Footer />
     </>
   );
