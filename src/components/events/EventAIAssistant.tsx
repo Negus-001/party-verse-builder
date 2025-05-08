@@ -37,6 +37,7 @@ const EventAIAssistant = ({ onNextStep, onPrevStep, eventType }: EventAIAssistan
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [initialSuggestionsLoaded, setInitialSuggestionsLoaded] = useState(false);
   const [showEventHistory, setShowEventHistory] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     // Load initial suggestions automatically
@@ -45,32 +46,44 @@ const EventAIAssistant = ({ onNextStep, onPrevStep, eventType }: EventAIAssistan
       if (initialSuggestionsLoaded) return;
       
       setIsGenerating(true);
+      setError(null);
       
       try {
         // Get event details from sessionStorage for demo purposes
+        const eventTitle = sessionStorage.getItem('eventTitle') || `My ${eventType.charAt(0).toUpperCase() + eventType.slice(1)}`;
+        const eventDate = sessionStorage.getItem('eventDate') || "2025-08-15";
+        const eventLocation = sessionStorage.getItem('eventLocation') || "Celebration Venue";
+        const eventGuests = Number(sessionStorage.getItem('eventGuests')) || 50;
+        
         // In a real app, this would come from context or props
-        const mockEventDetails = {
-          title: `My ${eventType.charAt(0).toUpperCase() + eventType.slice(1)}`,
-          date: "2025-08-15",
-          location: "Celebration Venue",
-          guests: 50,
+        const eventDetails = {
+          title: eventTitle,
+          date: eventDate,
+          location: eventLocation,
+          guests: eventGuests,
           budget: 2000
         };
         
-        const aiResponse = await generateAIEventSuggestions(eventType, mockEventDetails);
+        const aiResponse = await generateAIEventSuggestions(eventType, eventDetails);
         
         // Parse the AI response into suggestion categories
-        const parsedSuggestions = parseAIResponse(aiResponse);
-        setSuggestions(parsedSuggestions);
-        
-        setInitialSuggestionsLoaded(true);
-        
-        toast({
-          title: "Suggestions generated",
-          description: "We've created personalized ideas for your event",
-        });
+        if (aiResponse) {
+          const parsedSuggestions = parseAIResponse(aiResponse);
+          setSuggestions(parsedSuggestions);
+          setInitialSuggestionsLoaded(true);
+          
+          toast({
+            title: "Suggestions generated",
+            description: "We've created personalized ideas for your event",
+          });
+        } else {
+          throw new Error("Failed to generate suggestions");
+        }
       } catch (error) {
         console.error("Error generating initial suggestions:", error);
+        setError("We couldn't connect to our AI service. Please try again or enter your own prompt.");
+        
+        // Fallback suggestions
         setSuggestions([
           {
             id: '1',
@@ -88,6 +101,7 @@ const EventAIAssistant = ({ onNextStep, onPrevStep, eventType }: EventAIAssistan
             text: 'A professional DJ who can double as an MC will keep your event flowing smoothly and guests entertained.'
           },
         ]);
+        setInitialSuggestionsLoaded(true);
       } finally {
         setIsGenerating(false);
       }
@@ -107,31 +121,43 @@ const EventAIAssistant = ({ onNextStep, onPrevStep, eventType }: EventAIAssistan
     }
 
     setIsGenerating(true);
+    setError(null);
 
     try {
-      // In a real application, we'd send the specific event details
-      const mockEventDetails = {
-        title: `My ${eventType.charAt(0).toUpperCase() + eventType.slice(1)}`,
-        date: "2025-08-15",
-        location: "Celebration Venue",
-        guests: 50,
+      // Get stored event details if available
+      const eventTitle = sessionStorage.getItem('eventTitle') || `My ${eventType.charAt(0).toUpperCase() + eventType.slice(1)}`;
+      const eventDate = sessionStorage.getItem('eventDate') || "2025-08-15";
+      const eventLocation = sessionStorage.getItem('eventLocation') || "Celebration Venue";
+      const eventGuests = Number(sessionStorage.getItem('eventGuests')) || 50;
+      
+      const eventDetails = {
+        title: eventTitle,
+        date: eventDate,
+        location: eventLocation,
+        guests: eventGuests,
         preferences: prompt
       };
       
-      const response = await generateAIEventSuggestions(eventType, mockEventDetails);
+      const response = await generateAIEventSuggestions(eventType, eventDetails);
       
-      // Parse the AI response
-      const newSuggestions = parseAIResponse(response);
-      setSuggestions(newSuggestions);
-      
-      setPrompt('');
-      
-      toast({
-        title: "New suggestions generated",
-        description: "We've updated your event ideas based on your request",
-      });
+      if (response) {
+        // Parse the AI response
+        const newSuggestions = parseAIResponse(response);
+        setSuggestions(newSuggestions);
+        
+        setPrompt('');
+        
+        toast({
+          title: "New suggestions generated",
+          description: "We've updated your event ideas based on your request",
+        });
+      } else {
+        throw new Error("Failed to generate suggestions");
+      }
     } catch (error) {
       console.error("Error generating suggestions:", error);
+      setError("We couldn't connect to our AI service. Please try again later.");
+      
       toast({
         title: "Error",
         description: "Failed to generate suggestions. Please try again.",
@@ -195,6 +221,13 @@ const EventAIAssistant = ({ onNextStep, onPrevStep, eventType }: EventAIAssistan
   };
 
   const handleSaveSuggestions = () => {
+    // Store suggestions in session storage for use in later steps
+    try {
+      sessionStorage.setItem('eventSuggestions', JSON.stringify(suggestions));
+    } catch (err) {
+      console.error("Error saving suggestions to session storage:", err);
+    }
+    
     toast({
       title: "Suggestions saved",
       description: "Your AI suggestions have been saved to your event plan",
@@ -276,6 +309,12 @@ const EventAIAssistant = ({ onNextStep, onPrevStep, eventType }: EventAIAssistan
                   ))}
                 </div>
               </div>
+              
+              {error && (
+                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md text-sm text-destructive">
+                  {error}
+                </div>
+              )}
             </div>
           </CardContent>
           <CardFooter>

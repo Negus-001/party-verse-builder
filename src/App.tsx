@@ -1,3 +1,4 @@
+
 import { Route, Routes } from "react-router-dom";
 import { Suspense, lazy, useEffect } from "react";
 import { useAuth } from "./context/AuthContext";
@@ -32,6 +33,8 @@ const Vendors = lazy(() => import("./pages/Vendors"));
 const VendorDetails = lazy(() => import("./pages/VendorDetails"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Inspiration = lazy(() => import("./pages/Inspiration"));
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const VendorDashboard = lazy(() => import("./pages/VendorDashboard"));
 
 // Loading component
 const LoadingFallback = () => (
@@ -39,6 +42,38 @@ const LoadingFallback = () => (
     <LoadingSpinner size="lg" text="Loading Celebration Central..." />
   </div>
 );
+
+// Admin route protection
+const AdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAdmin, loading } = useAuth();
+  const navigate = useNavigate();
+  
+  useEffect(() => {
+    if (!loading && !isAdmin) {
+      navigate('/dashboard');
+    }
+  }, [isAdmin, loading, navigate]);
+  
+  if (loading) return <LoadingFallback />;
+  
+  return isAdmin ? <>{children}</> : null;
+};
+
+// Vendor route protection
+const VendorRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isVendor, loading } = useAuth();
+  const navigate = useNavigate();
+  
+  useEffect(() => {
+    if (!loading && !isVendor) {
+      navigate('/dashboard');
+    }
+  }, [isVendor, loading, navigate]);
+  
+  if (loading) return <LoadingFallback />;
+  
+  return isVendor ? <>{children}</> : null;
+};
 
 function App() {
   const { currentUser } = useAuth();
@@ -81,6 +116,23 @@ function App() {
             <Route path="/vendors" element={<Vendors />} />
             <Route path="/vendor/:id" element={<VendorDetails />} />
             <Route path="/inspiration" element={<Inspiration />} />
+            
+            {/* New admin and vendor routes */}
+            <Route path="/admin" element={
+              <ProtectedRoute>
+                <AdminRoute>
+                  <AdminDashboard />
+                </AdminRoute>
+              </ProtectedRoute>
+            } />
+            <Route path="/vendor" element={
+              <ProtectedRoute>
+                <VendorRoute>
+                  <VendorDashboard />
+                </VendorRoute>
+              </ProtectedRoute>
+            } />
+            
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
@@ -97,3 +149,4 @@ function App() {
 }
 
 export default App;
+
