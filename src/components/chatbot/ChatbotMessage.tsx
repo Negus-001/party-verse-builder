@@ -47,42 +47,43 @@ const ChatbotMessage = ({ message, isBot }: ChatbotMessageProps) => {
       
       <div className="leading-relaxed">
         {isBot ? (
-          <ReactMarkdown 
-            components={{
-              // Style links and other elements as needed
-              a: (props) => (
-                <a 
-                  {...props} 
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary underline hover:no-underline"
-                />
-              ),
-              // Custom styling for code blocks
-              code: (props) => (
-                <code 
-                  {...props}
-                  className="bg-muted px-1 py-0.5 rounded text-xs"
-                />
-              ),
-              // Style lists properly
-              ul: (props) => (
-                <ul 
-                  {...props}
-                  className="list-disc pl-4 space-y-1 my-2"
-                />
-              ),
-              ol: (props) => (
-                <ol 
-                  {...props}
-                  className="list-decimal pl-4 space-y-1 my-2"
-                />
-              ),
-            }}
-            className="prose prose-sm dark:prose-invert max-w-none"
-          >
-            {processedMessage}
-          </ReactMarkdown>
+          <div className="prose prose-sm dark:prose-invert max-w-none">
+            <ReactMarkdown 
+              components={{
+                // Style links and other elements as needed
+                a: (props) => (
+                  <a 
+                    {...props} 
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary underline hover:no-underline"
+                  />
+                ),
+                // Custom styling for code blocks
+                code: (props) => (
+                  <code 
+                    {...props}
+                    className="bg-muted px-1 py-0.5 rounded text-xs"
+                  />
+                ),
+                // Style lists properly
+                ul: (props) => (
+                  <ul 
+                    {...props}
+                    className="list-disc pl-4 space-y-1 my-2"
+                  />
+                ),
+                ol: (props) => (
+                  <ol 
+                    {...props}
+                    className="list-decimal pl-4 space-y-1 my-2"
+                  />
+                ),
+              }}
+            >
+              {processedMessage}
+            </ReactMarkdown>
+          </div>
         ) : (
           <p>{message}</p>
         )}
