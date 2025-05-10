@@ -48,10 +48,9 @@ const ChatbotMessage = ({ message, isBot }: ChatbotMessageProps) => {
       <div className="leading-relaxed">
         {isBot ? (
           <ReactMarkdown 
-            className="prose prose-sm dark:prose-invert max-w-none"
             components={{
               // Style links and other elements as needed
-              a: ({ node, ...props }) => (
+              a: (props) => (
                 <a 
                   {...props} 
                   target="_blank"
@@ -60,26 +59,27 @@ const ChatbotMessage = ({ message, isBot }: ChatbotMessageProps) => {
                 />
               ),
               // Custom styling for code blocks
-              code: ({ node, ...props }) => (
+              code: (props) => (
                 <code 
                   {...props}
                   className="bg-muted px-1 py-0.5 rounded text-xs"
                 />
               ),
               // Style lists properly
-              ul: ({ node, ...props }) => (
+              ul: (props) => (
                 <ul 
                   {...props}
                   className="list-disc pl-4 space-y-1 my-2"
                 />
               ),
-              ol: ({ node, ...props }) => (
+              ol: (props) => (
                 <ol 
                   {...props}
                   className="list-decimal pl-4 space-y-1 my-2"
                 />
               ),
             }}
+            className="prose prose-sm dark:prose-invert max-w-none"
           >
             {processedMessage}
           </ReactMarkdown>

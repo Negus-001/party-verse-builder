@@ -1,396 +1,481 @@
 
-import React, { useState, useEffect } from 'react';
-import Navbar from '@/components/layout/Navbar';
-import Footer from '@/components/layout/Footer';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useEffect, useState } from 'react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { 
-  Package, 
-  Calendar, 
-  DollarSign, 
-  MessageCircle, 
-  Settings, 
-  ChevronRight,
-  Users
-} from 'lucide-react';
-import { db } from '@/lib/firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { formatEventDate, getEventTypeColor } from '@/utils/eventHelpers';
+import { CalendarIcon, ClipboardList, Bell, Settings, Users, CalendarCheck, Calendar, Calendar as CalendarIcon2, Percent, Building, MapPin } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface VendorEvent {
   id: string;
-  title?: string;
-  date?: string | Date;
-  type?: string;
-  location?: string;
-  status?: string;
+  title: string;
+  type: string;
+  date: Timestamp;
+  location: string;
+  status: 'upcoming' | 'active' | 'completed' | 'canceled';
+  clientName: string;
+  amount: number;
 }
 
-interface VendorService {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  isActive: boolean;
+interface VendorStats {
+  totalEvents: number;
+  upcomingEvents: number;
+  completedEvents: number;
+  totalRevenue: number;
 }
 
 const VendorDashboard = () => {
-  const [activeTab, setActiveTab] = useState("overview");
+  const navigate = useNavigate();
+  const { userData, currentUser } = useAuth();
+  const { toast } = useToast();
   const [events, setEvents] = useState<VendorEvent[]>([]);
-  const [pendingEvents, setPendingEvents] = useState<VendorEvent[]>([]);
-  const [services, setServices] = useState<VendorService[]>([
-    {
-      id: "1",
-      name: "Wedding Photography",
-      description: "Professional wedding photography services",
-      price: 1200,
-      isActive: true
-    },
-    {
-      id: "2",
-      name: "DJ Services",
-      description: "Music and entertainment for your event",
-      price: 800,
-      isActive: true
-    },
-    {
-      id: "3",
-      name: "Catering",
-      description: "Delicious food for your guests",
-      price: 35, // per person
-      isActive: false
-    }
-  ]);
+  const [stats, setStats] = useState<VendorStats>({
+    totalEvents: 0,
+    upcomingEvents: 0,
+    completedEvents: 0,
+    totalRevenue: 0
+  });
+  const [loading, setLoading] = useState(true);
 
-  const { currentUser, userData } = useAuth();
+  // Get vendor services
+  const vendorServices = userData?.services || [];
   
   useEffect(() => {
-    const fetchEvents = async () => {
-      // Demo data for now - in real app, this would fetch from Firestore
-      // based on the vendor's services
-      setEvents([
-        {
-          id: "event1",
-          title: "Johnson Wedding",
-          date: "2025-06-15",
-          type: "Wedding",
-          location: "Grand Hotel",
-          status: "confirmed"
-        },
-        {
-          id: "event2",
-          title: "Tech Corp Annual Party",
-          date: "2025-05-20",
-          type: "Corporate",
-          location: "Tech Corp HQ",
-          status: "confirmed"
-        }
-      ]);
-      
-      setPendingEvents([
-        {
-          id: "event3",
-          title: "Smith Graduation",
-          date: "2025-07-10",
-          type: "Graduation",
-          location: "City University",
-          status: "pending"
-        }
-      ]);
-    };
-    
-    fetchEvents();
-  }, []);
+    const fetchVendorEvents = async () => {
+      if (!currentUser || !userData) return;
 
-  const handleAcceptEvent = (eventId: string) => {
-    // Move from pending to confirmed
-    const event = pendingEvents.find(e => e.id === eventId);
-    if (event) {
-      setPendingEvents(pendingEvents.filter(e => e.id !== eventId));
-      setEvents([...events, {...event, status: "confirmed"}]);
-    }
-  };
-  
-  const handleDeclineEvent = (eventId: string) => {
-    // Remove from pending
-    setPendingEvents(pendingEvents.filter(e => e.id !== eventId));
-  };
-  
-  const handleToggleService = (serviceId: string) => {
-    setServices(services.map(service => 
-      service.id === serviceId 
-        ? { ...service, isActive: !service.isActive } 
-        : service
-    ));
-  };
+      try {
+        // Create a query against events that match this vendor's services
+        const eventsRef = collection(db, "events");
+        
+        // We're using the vendor's services to find matching events
+        // In a real app, you might have a more direct relationship between vendors and events
+        const eventQuery = query(
+          eventsRef, 
+          where("vendorServices", "array-contains-any", vendorServices)
+        );
+        
+        const querySnapshot = await getDocs(eventQuery);
+        
+        const vendorEvents: VendorEvent[] = [];
+        let revenue = 0;
+        let upcoming = 0;
+        let completed = 0;
+        
+        querySnapshot.forEach((doc) => {
+          const eventData = doc.data();
+          const event: VendorEvent = {
+            id: doc.id,
+            title: eventData.title,
+            type: eventData.type,
+            date: eventData.date,
+            location: eventData.location,
+            status: eventData.status || 'upcoming',
+            clientName: eventData.clientName || 'Client',
+            amount: eventData.amount || 0
+          };
+          
+          vendorEvents.push(event);
+          revenue += event.amount;
+          
+          if (event.status === 'upcoming') upcoming++;
+          if (event.status === 'completed') completed++;
+        });
+        
+        setEvents(vendorEvents);
+        setStats({
+          totalEvents: vendorEvents.length,
+          upcomingEvents: upcoming,
+          completedEvents: completed,
+          totalRevenue: revenue
+        });
+      } catch (error) {
+        console.error("Error fetching vendor events:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load event data. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchVendorEvents();
+  }, [currentUser, userData, vendorServices, toast]);
+
+  // Filter events by status
+  const upcomingEvents = events.filter(event => event.status === 'upcoming');
+  const completedEvents = events.filter(event => event.status === 'completed');
 
   return (
-    <>
-      <Navbar />
-      
-      <main className="min-h-screen py-24 px-6 bg-gradient-to-b from-background via-accent/20 to-background transition-all">
-        <div className="container mx-auto max-w-6xl">
-          <div className="mb-8">
-            <h1 className="text-4xl font-display font-bold mb-2">Vendor Dashboard</h1>
-            <p className="text-muted-foreground">Manage your services and event bookings</p>
+    <div className="flex min-h-screen bg-muted/20">
+      {/* Sidebar */}
+      <aside className="hidden lg:block w-64 border-r bg-card p-6 space-y-6">
+        <div className="flex items-center space-x-2">
+          <Building className="h-6 w-6 text-primary" />
+          <span className="text-lg font-semibold">Vendor Portal</span>
+        </div>
+        
+        <nav className="space-y-1">
+          <Button variant="ghost" className="w-full justify-start text-primary" disabled>
+            <CalendarIcon2 className="mr-2 h-4 w-4" />
+            Dashboard
+          </Button>
+          <Button variant="ghost" className="w-full justify-start" onClick={() => navigate('/events')}>
+            <Calendar className="mr-2 h-4 w-4" />
+            Events
+          </Button>
+          <Button variant="ghost" className="w-full justify-start">
+            <ClipboardList className="mr-2 h-4 w-4" />
+            Services
+          </Button>
+          <Button variant="ghost" className="w-full justify-start">
+            <Bell className="mr-2 h-4 w-4" />
+            Notifications
+          </Button>
+          <Button variant="ghost" className="w-full justify-start">
+            <Settings className="mr-2 h-4 w-4" />
+            Settings
+          </Button>
+        </nav>
+        
+        <Separator />
+        
+        <div className="space-y-2">
+          <p className="text-sm font-medium">Your Services</p>
+          <div className="flex flex-wrap gap-1">
+            {vendorServices.map((service) => (
+              <Badge key={service} variant="outline" className="bg-primary/10">
+                {service.charAt(0).toUpperCase() + service.slice(1)}
+              </Badge>
+            ))}
           </div>
-          
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-            <TabsList className="grid grid-cols-4 w-full max-w-2xl">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="events">Events</TabsTrigger>
-              <TabsTrigger value="services">Services</TabsTrigger>
-              <TabsTrigger value="settings">Settings</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="overview" className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">Upcoming Events</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{events.length}</div>
-                    <p className="text-xs text-muted-foreground">
-                      +{pendingEvents.length} pending approval
-                    </p>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">Active Services</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      {services.filter(s => s.isActive).length}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      of {services.length} total services
-                    </p>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">Revenue (YTD)</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">$8,450</div>
-                    <p className="text-xs text-muted-foreground">
-                      +12% from last year
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Recent Events</CardTitle>
-                    <CardDescription>Your upcoming event bookings</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {events.length > 0 ? (
-                      <div className="space-y-4">
-                        {events.slice(0, 3).map(event => (
-                          <div key={event.id} className="flex items-center justify-between">
-                            <div>
-                              <p className="font-medium">{event.title}</p>
-                              <p className="text-sm text-muted-foreground">
-                                {new Date(event.date as string).toLocaleDateString()}, {event.location}
-                              </p>
-                            </div>
-                            <Badge>{event.type}</Badge>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-center text-muted-foreground py-4">
-                        No upcoming events
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Pending Approvals</CardTitle>
-                    <CardDescription>Events waiting for your confirmation</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {pendingEvents.length > 0 ? (
-                      <div className="space-y-4">
-                        {pendingEvents.map(event => (
-                          <div key={event.id} className="flex flex-col space-y-2 border-b pb-3">
-                            <div className="flex items-start justify-between">
-                              <div>
-                                <p className="font-medium">{event.title}</p>
-                                <p className="text-sm text-muted-foreground">
-                                  {new Date(event.date as string).toLocaleDateString()}, {event.location}
-                                </p>
-                              </div>
-                              <Badge variant="outline">{event.type}</Badge>
-                            </div>
-                            <div className="flex gap-2 justify-end">
-                              <Button 
-                                size="sm" 
-                                variant="outline" 
-                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                onClick={() => handleDeclineEvent(event.id)}
-                              >
-                                Decline
-                              </Button>
-                              <Button 
-                                size="sm"
-                                onClick={() => handleAcceptEvent(event.id)}
-                              >
-                                Accept
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-center text-muted-foreground py-4">
-                        No pending approvals
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="events" className="space-y-6">
+        </div>
+        
+        <Separator />
+        
+        <div className="space-y-4">
+          <div className="flex justify-between">
+            <p className="text-sm font-medium">Profile Completion</p>
+            <p className="text-sm text-muted-foreground">75%</p>
+          </div>
+          <Progress value={75} />
+        </div>
+      </aside>
+      
+      {/* Main content */}
+      <main className="flex-1 p-6 lg:p-8">
+        <div className="max-w-6xl mx-auto space-y-6">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <h1 className="text-3xl font-bold">Vendor Dashboard</h1>
+            <div className="flex items-center space-x-2">
+              <Button variant="outline" onClick={() => navigate('/vendor/profile')}>
+                <Settings className="h-4 w-4 mr-2" />
+                Vendor Settings
+              </Button>
+              <Avatar>
+                <AvatarImage src={currentUser?.photoURL || undefined} />
+                <AvatarFallback>
+                  {userData?.displayName?.charAt(0) || userData?.businessName?.charAt(0) || 'V'}
+                </AvatarFallback>
+              </Avatar>
+            </div>
+          </div>
+
+          {/* Business Overview Section */}
+          <div>
+            <h2 className="text-xl font-semibold mb-4">Business Overview</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Card>
-                <CardHeader>
-                  <CardTitle>Event Calendar</CardTitle>
-                  <CardDescription>Your schedule of confirmed events</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {events.map(event => (
-                      <div key={event.id} className="flex items-center justify-between border-b pb-3">
-                        <div className="flex items-start gap-4">
-                          <div className="bg-primary/10 rounded-md p-2 text-center min-w-16">
-                            <div className="text-xs uppercase">
-                              {new Date(event.date as string).toLocaleDateString(undefined, { month: 'short' })}
-                            </div>
-                            <div className="text-xl font-bold">
-                              {new Date(event.date as string).getDate()}
-                            </div>
-                          </div>
-                          <div>
-                            <p className="font-semibold">{event.title}</p>
-                            <p className="text-sm text-muted-foreground">{event.location}</p>
-                            <Badge className="mt-1" variant="outline">{event.type}</Badge>
-                          </div>
-                        </div>
-                        <Button variant="ghost" size="icon">
-                          <ChevronRight />
-                          <span className="sr-only">Event details</span>
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  {events.length === 0 && (
-                    <div className="text-center py-8">
-                      <Calendar className="mx-auto h-12 w-12 text-muted-foreground" />
-                      <h3 className="mt-2 font-medium">No events found</h3>
-                      <p className="text-muted-foreground">You don't have any events booked yet.</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="services" className="space-y-6">
-              <Card>
-                <CardHeader>
+                <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <CardTitle>Your Services</CardTitle>
-                      <CardDescription>Manage the services you offer</CardDescription>
+                      <p className="text-sm text-muted-foreground">Total Events</p>
+                      <p className="text-3xl font-bold">{stats.totalEvents}</p>
                     </div>
-                    <Button>Add New Service</Button>
+                    <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center">
+                      <CalendarCheck className="h-6 w-6 text-primary" />
+                    </div>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {services.map(service => (
-                      <div key={service.id} className="flex items-center justify-between border-b pb-3">
-                        <div>
-                          <div className="font-semibold">{service.name}</div>
-                          <div className="text-sm text-muted-foreground">{service.description}</div>
-                          <div className="font-medium mt-1">${service.price.toFixed(2)}</div>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <Badge variant={service.isActive ? "default" : "outline"}>
-                            {service.isActive ? "Active" : "Inactive"}
-                          </Badge>
-                          <Button 
-                            variant="outline"
-                            onClick={() => handleToggleService(service.id)}
-                          >
-                            {service.isActive ? "Disable" : "Enable"}
-                          </Button>
-                        </div>
-                      </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Upcoming</p>
+                      <p className="text-3xl font-bold">{stats.upcomingEvents}</p>
+                    </div>
+                    <div className="h-12 w-12 bg-blue-500/10 rounded-full flex items-center justify-center">
+                      <Calendar className="h-6 w-6 text-blue-500" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Completed</p>
+                      <p className="text-3xl font-bold">{stats.completedEvents}</p>
+                    </div>
+                    <div className="h-12 w-12 bg-green-500/10 rounded-full flex items-center justify-center">
+                      <CalendarCheck className="h-6 w-6 text-green-500" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Revenue</p>
+                      <p className="text-3xl font-bold">${stats.totalRevenue.toLocaleString()}</p>
+                    </div>
+                    <div className="h-12 w-12 bg-amber-500/10 rounded-full flex items-center justify-center">
+                      <Percent className="h-6 w-6 text-amber-500" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Business Details */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Building className="mr-2 h-5 w-5" />
+                  Business Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Business Name</p>
+                  <p className="text-lg font-medium">{userData?.businessName || 'Your Business'}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Email</p>
+                    <p>{userData?.email || currentUser?.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Phone</p>
+                    <p>{userData?.phone || 'Not provided'}</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Services Offered</p>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {vendorServices.map((service) => (
+                      <Badge key={service} variant="outline" className="bg-primary/10">
+                        {service.charAt(0).toUpperCase() + service.slice(1)}
+                      </Badge>
                     ))}
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Status</p>
+                  <Badge variant={userData?.verified ? "default" : "outline"} className={userData?.verified ? "bg-green-500" : ""}>
+                    {userData?.verified ? 'Verified' : 'Pending Verification'}
+                  </Badge>
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button variant="outline" className="w-full">
+                  <Settings className="mr-2 h-4 w-4" />
+                  Update Business Profile
+                </Button>
+              </CardFooter>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>Quick Actions</CardTitle>
+                <CardDescription>Manage your vendor services</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Button className="w-full justify-start" variant="outline">
+                  <Users className="mr-2 h-4 w-4" />
+                  View Upcoming Clients
+                </Button>
+                <Button className="w-full justify-start" variant="outline">
+                  <CalendarCheck className="mr-2 h-4 w-4" />
+                  Add Availability Dates
+                </Button>
+                <Button className="w-full justify-start" variant="outline">
+                  <Percent className="mr-2 h-4 w-4" />
+                  View Service Requests
+                </Button>
+                <Button className="w-full justify-start" variant="outline">
+                  <Bell className="mr-2 h-4 w-4" />
+                  Manage Notifications
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Events Tabs */}
+          <Tabs defaultValue="upcoming" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="upcoming">Upcoming Events</TabsTrigger>
+              <TabsTrigger value="completed">Completed Events</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="upcoming" className="space-y-4">
+              {loading ? (
+                <Card>
+                  <CardContent className="py-10 text-center">
+                    <div className="flex flex-col items-center space-y-3">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                      <p>Loading upcoming events...</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : upcomingEvents.length > 0 ? (
+                <div className="grid gap-4 md:grid-cols-2">
+                  {upcomingEvents.map(event => (
+                    <Card key={event.id}>
+                      <CardHeader className="pb-2">
+                        <div className="flex justify-between">
+                          <div>
+                            <Badge
+                              className={getEventTypeColor(event.type)}
+                            >
+                              {event.type}
+                            </Badge>
+                            <CardTitle className="mt-2">{event.title}</CardTitle>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="text-sm space-y-2">
+                        <div className="flex items-center">
+                          <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                          <span>{formatEventDate(event.date)}</span>
+                        </div>
+                        <div className="flex items-center">
+                          <MapPin className="mr-2 h-4 w-4 text-muted-foreground" />
+                          <span>{event.location}</span>
+                        </div>
+                        <div className="flex items-center">
+                          <Users className="mr-2 h-4 w-4 text-muted-foreground" />
+                          <span>Client: {event.clientName}</span>
+                        </div>
+                        <div className="mt-2">
+                          <Badge variant="outline" className="bg-blue-500/10 text-blue-500">
+                            ${event.amount.toLocaleString()}
+                          </Badge>
+                        </div>
+                      </CardContent>
+                      <CardFooter>
+                        <Button
+                          variant="outline"
+                          className="w-full"
+                          onClick={() => navigate(`/event/${event.id}`)}
+                        >
+                          View Details
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="py-10 text-center">
+                    <p className="text-muted-foreground">No upcoming events found.</p>
+                    <Button className="mt-4" variant="outline">
+                      Explore Events
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
             
-            <TabsContent value="settings" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Vendor Profile</CardTitle>
-                  <CardDescription>Manage your business information</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Business Name</label>
-                    <input 
-                      type="text" 
-                      className="w-full p-2 rounded border"
-                      value="Celebrations & Co."
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Description</label>
-                    <textarea 
-                      className="w-full p-2 rounded border" 
-                      rows={3}
-                      value="We provide premium event services for all types of celebrations."
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Contact Email</label>
-                    <input 
-                      type="email" 
-                      className="w-full p-2 rounded border"
-                      value="contact@celebrationsco.com"
-                    />
-                  </div>
-                  
-                  <Button className="mt-4">Save Changes</Button>
-                </CardContent>
-              </Card>
+            <TabsContent value="completed" className="space-y-4">
+              {loading ? (
+                <Card>
+                  <CardContent className="py-10 text-center">
+                    <div className="flex flex-col items-center space-y-3">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                      <p>Loading completed events...</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : completedEvents.length > 0 ? (
+                <div className="grid gap-4 md:grid-cols-2">
+                  {completedEvents.map(event => (
+                    <Card key={event.id}>
+                      <CardHeader className="pb-2">
+                        <div className="flex justify-between">
+                          <div>
+                            <Badge
+                              className={getEventTypeColor(event.type)}
+                            >
+                              {event.type}
+                            </Badge>
+                            <CardTitle className="mt-2">{event.title}</CardTitle>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="text-sm space-y-2">
+                        <div className="flex items-center">
+                          <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                          <span>{formatEventDate(event.date)}</span>
+                        </div>
+                        <div className="flex items-center">
+                          <MapPin className="mr-2 h-4 w-4 text-muted-foreground" />
+                          <span>{event.location}</span>
+                        </div>
+                        <div className="flex items-center">
+                          <Users className="mr-2 h-4 w-4 text-muted-foreground" />
+                          <span>Client: {event.clientName}</span>
+                        </div>
+                        <div className="mt-2">
+                          <Badge variant="outline" className="bg-green-500/10 text-green-500">
+                            ${event.amount.toLocaleString()}
+                          </Badge>
+                        </div>
+                      </CardContent>
+                      <CardFooter>
+                        <Button
+                          variant="outline"
+                          className="w-full"
+                          onClick={() => navigate(`/event/${event.id}`)}
+                        >
+                          View Details
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="py-10 text-center">
+                    <p className="text-muted-foreground">No completed events found.</p>
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
           </Tabs>
         </div>
       </main>
-      
-      <Footer />
-    </>
+    </div>
   );
 };
 

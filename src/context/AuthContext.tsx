@@ -9,7 +9,12 @@ export type UserRole = 'user' | 'admin' | 'vendor';
 
 interface UserData {
   role: UserRole;
+  displayName?: string;
+  email?: string;
   services?: string[]; // For vendors
+  businessName?: string; // For vendors
+  phone?: string; // For vendors
+  verified?: boolean; // For vendors
 }
 
 interface AuthContextType {

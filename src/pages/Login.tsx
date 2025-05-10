@@ -11,6 +11,10 @@ import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import { signInWithEmail, signInWithGoogle } from '@/lib/firebase';
 import { FirebaseError } from 'firebase/app';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { motion } from 'framer-motion';
+import { User, Mail, Lock } from 'lucide-react';
 
 const Login = () => {
   const { toast } = useToast();
@@ -24,12 +28,35 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      await signInWithEmail(email, password);
-      toast({
-        title: "Success!",
-        description: "You have successfully logged in.",
-      });
-      navigate('/dashboard');
+      const userCredential = await signInWithEmail(email, password);
+      const user = userCredential.user;
+      
+      // Fetch user data to determine role
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        
+        toast({
+          title: "Welcome back!",
+          description: "You have successfully logged in.",
+        });
+        
+        // Redirect based on role
+        switch (userData.role) {
+          case 'admin':
+            navigate('/admin');
+            break;
+          case 'vendor':
+            navigate('/vendor');
+            break;
+          default:
+            navigate('/dashboard');
+        }
+      } else {
+        // If no user document exists, create a basic one and redirect to dashboard
+        navigate('/dashboard');
+      }
     } catch (error) {
       console.error("Login error:", error);
       let errorMessage = "Failed to log in. Please check your credentials and try again.";
@@ -63,12 +90,34 @@ const Login = () => {
     setIsLoading(true);
     
     try {
-      await signInWithGoogle();
+      const result = await signInWithGoogle();
+      
+      // Check if this user exists in our database
+      const userDoc = await getDoc(doc(db, "users", result.user.uid));
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        
+        // Redirect based on role
+        switch (userData.role) {
+          case 'admin':
+            navigate('/admin');
+            break;
+          case 'vendor':
+            navigate('/vendor');
+            break;
+          default:
+            navigate('/dashboard');
+        }
+      } else {
+        // If this is a first-time Google sign in, create a user document
+        navigate('/dashboard');
+      }
+      
       toast({
         title: "Success!",
         description: "You have successfully logged in with Google.",
       });
-      navigate('/dashboard');
     } catch (error) {
       console.error("Google login error:", error);
       toast({
@@ -85,19 +134,29 @@ const Login = () => {
     <>
       <Navbar />
 
-      <main className="min-h-screen flex items-center justify-center px-6 py-24">
-        <div className="w-full max-w-md">
-          <Card className="border-2 shadow-md">
+      <main className="min-h-screen flex items-center justify-center px-6 py-24 bg-gradient-to-b from-background to-background/80">
+        <motion.div 
+          className="w-full max-w-md"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          <Card className="border-2 shadow-lg">
             <CardHeader className="space-y-1 text-center">
-              <CardTitle className="text-3xl font-display font-bold">Welcome back</CardTitle>
+              <CardTitle className="text-3xl font-display font-bold bg-gradient-to-r from-primary to-purple-500 text-transparent bg-clip-text">
+                Welcome Back
+              </CardTitle>
               <CardDescription className="text-muted-foreground">
-                Enter your email to sign in to your account
+                Sign in to continue planning your celebrations
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email" className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    Email
+                  </Label>
                   <Input 
                     id="email" 
                     type="email" 
@@ -105,11 +164,15 @@ const Login = () => {
                     required 
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    className="transition-all focus:ring-2 focus:ring-primary/30"
                   />
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="password">Password</Label>
+                    <Label htmlFor="password" className="flex items-center gap-2">
+                      <Lock className="h-4 w-4 text-muted-foreground" />
+                      Password
+                    </Label>
                     <Link to="/forgot-password" className="text-sm text-primary hover:underline">
                       Forgot password?
                     </Link>
@@ -120,10 +183,22 @@ const Login = () => {
                     required 
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    className="transition-all focus:ring-2 focus:ring-primary/30"
                   />
                 </div>
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Signing in..." : "Sign in"}
+                <Button 
+                  type="submit" 
+                  className="w-full transition-all hover:shadow-md" 
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <>
+                      <span className="mr-2">Signing in</span>
+                      <span className="loading loading-spinner loading-xs"></span>
+                    </>
+                  ) : (
+                    "Sign in"
+                  )}
                 </Button>
               </form>
 
@@ -138,7 +213,12 @@ const Login = () => {
                 </div>
               </div>
 
-              <Button variant="outline" onClick={handleGoogleLogin} disabled={isLoading} className="w-full">
+              <Button 
+                variant="outline" 
+                onClick={handleGoogleLogin} 
+                disabled={isLoading} 
+                className="w-full transition-all hover:border-primary/50"
+              >
                 <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                   <path
                     d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -160,7 +240,7 @@ const Login = () => {
                 Sign in with Google
               </Button>
             </CardContent>
-            <CardFooter className="flex items-center justify-center">
+            <CardFooter className="flex flex-col items-center justify-center space-y-2">
               <p className="text-sm text-muted-foreground">
                 Don't have an account?{" "}
                 <Link to="/signup" className="text-primary font-medium hover:underline">
@@ -169,7 +249,7 @@ const Login = () => {
               </p>
             </CardFooter>
           </Card>
-        </div>
+        </motion.div>
       </main>
 
       <Footer />

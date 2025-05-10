@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,7 +10,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { CalendarIcon, Users, DollarSign } from 'lucide-react';
+import { CalendarIcon, Users, DollarSign, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -32,20 +32,71 @@ interface EventBasicDetailsFormProps {
   selectedType: string;
 }
 
+export interface EventFormData {
+  title: string;
+  date: Date | undefined;
+  timeOfDay: string;
+  location: string;
+  locationDetails?: string;
+  guests: number;
+  budget: number;
+  description: string;
+}
+
 const EventBasicDetailsForm = ({ onNextStep, onPrevStep, selectedType }: EventBasicDetailsFormProps) => {
   const { toast } = useToast();
-  const [eventName, setEventName] = useState('');
-  const [eventDate, setEventDate] = useState<Date | undefined>(undefined);
-  const [eventLocation, setEventLocation] = useState('');
-  const [eventDescription, setEventDescription] = useState('');
-  const [guests, setGuests] = useState(50);
-  const [budget, setBudget] = useState<number>(1000);
-  const [timeOfDay, setTimeOfDay] = useState('');
+  const [eventData, setEventData] = useState<EventFormData>({
+    title: '',
+    date: undefined,
+    timeOfDay: '',
+    location: '',
+    locationDetails: '',
+    guests: 50,
+    budget: 1000,
+    description: ''
+  });
+
+  // Load any previously saved data from sessionStorage
+  useEffect(() => {
+    const savedData = sessionStorage.getItem('eventFormData');
+    
+    if (savedData) {
+      try {
+        const parsedData = JSON.parse(savedData);
+        
+        // Convert date string back to Date object if it exists
+        if (parsedData.date) {
+          parsedData.date = new Date(parsedData.date);
+        }
+        
+        setEventData(prevData => ({
+          ...prevData,
+          ...parsedData
+        }));
+      } catch (error) {
+        console.error("Error parsing saved event data:", error);
+      }
+    } else if (selectedType) {
+      // Set a default title based on the type if no saved data
+      setEventData(prevData => ({
+        ...prevData,
+        title: `My ${selectedType.charAt(0).toUpperCase() + selectedType.slice(1)}`
+      }));
+    }
+  }, [selectedType]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { id, value } = e.target;
+    setEventData(prevData => ({
+      ...prevData,
+      [id]: value
+    }));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!eventName || !eventDate || !eventLocation) {
+    if (!eventData.title || !eventData.date || !eventData.location) {
       toast({
         title: "Missing information",
         description: "Please fill out all required fields",
@@ -54,7 +105,18 @@ const EventBasicDetailsForm = ({ onNextStep, onPrevStep, selectedType }: EventBa
       return;
     }
 
-    // Here we would save the event details to a state manager or context
+    // Save the form data to sessionStorage
+    try {
+      sessionStorage.setItem('eventFormData', JSON.stringify(eventData));
+      sessionStorage.setItem('eventTitle', eventData.title);
+      sessionStorage.setItem('eventDate', eventData.date?.toISOString() || '');
+      sessionStorage.setItem('eventLocation', eventData.location);
+      sessionStorage.setItem('eventGuests', eventData.guests.toString());
+      sessionStorage.setItem('eventBudget', eventData.budget.toString());
+    } catch (error) {
+      console.error("Error saving event data:", error);
+    }
+
     onNextStep();
   };
 
@@ -86,12 +148,12 @@ const EventBasicDetailsForm = ({ onNextStep, onPrevStep, selectedType }: EventBa
       <h2 className="text-2xl font-display font-semibold mb-6">Event Details</h2>
       <form onSubmit={handleSubmit} className="space-y-6">
         <motion.div className="space-y-2" variants={itemVariants}>
-          <Label htmlFor="eventName">Event Name</Label>
+          <Label htmlFor="title">Event Name</Label>
           <Input
-            id="eventName"
+            id="title"
             placeholder={`My ${selectedType.charAt(0).toUpperCase() + selectedType.slice(1)}`}
-            value={eventName}
-            onChange={(e) => setEventName(e.target.value)}
+            value={eventData.title}
+            onChange={handleInputChange}
             required
             className="transition-all focus:ring-2 focus:ring-primary/30"
           />
@@ -105,18 +167,18 @@ const EventBasicDetailsForm = ({ onNextStep, onPrevStep, selectedType }: EventBa
                 variant={"outline"}
                 className={cn(
                   "w-full justify-start text-left font-normal transition-all",
-                  !eventDate && "text-muted-foreground"
+                  !eventData.date && "text-muted-foreground"
                 )}
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {eventDate ? format(eventDate, "PPP") : <span>Pick a date</span>}
+                {eventData.date ? format(eventData.date, "PPP") : <span>Pick a date</span>}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
               <Calendar
                 mode="single"
-                selected={eventDate}
-                onSelect={setEventDate}
+                selected={eventData.date}
+                onSelect={(date) => setEventData(prev => ({ ...prev, date }))}
                 initialFocus
                 className="p-3 pointer-events-auto"
               />
@@ -126,7 +188,10 @@ const EventBasicDetailsForm = ({ onNextStep, onPrevStep, selectedType }: EventBa
 
         <motion.div className="space-y-2" variants={itemVariants}>
           <Label htmlFor="timeOfDay">Time of Day</Label>
-          <Select onValueChange={setTimeOfDay}>
+          <Select 
+            value={eventData.timeOfDay} 
+            onValueChange={(value) => setEventData(prev => ({ ...prev, timeOfDay: value }))}
+          >
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Select time of day" />
             </SelectTrigger>
@@ -143,21 +208,35 @@ const EventBasicDetailsForm = ({ onNextStep, onPrevStep, selectedType }: EventBa
         </motion.div>
 
         <motion.div className="space-y-2" variants={itemVariants}>
-          <Label htmlFor="eventLocation">Location</Label>
+          <Label htmlFor="location">Location</Label>
+          <div className="flex items-center gap-2">
+            <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <Input
+              id="location"
+              placeholder="Event venue or address"
+              value={eventData.location}
+              onChange={handleInputChange}
+              required
+              className="transition-all focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
+        </motion.div>
+        
+        <motion.div className="space-y-2" variants={itemVariants}>
+          <Label htmlFor="locationDetails">Location Details (Optional)</Label>
           <Input
-            id="eventLocation"
-            placeholder="Event venue or address"
-            value={eventLocation}
-            onChange={(e) => setEventLocation(e.target.value)}
-            required
+            id="locationDetails"
+            placeholder="Floor, room number, or special directions"
+            value={eventData.locationDetails || ''}
+            onChange={handleInputChange}
             className="transition-all focus:ring-2 focus:ring-primary/30"
           />
         </motion.div>
 
         <motion.div className="space-y-4" variants={itemVariants}>
           <div className="flex items-center justify-between">
-            <Label htmlFor="guests">Number of Guests: {guests}</Label>
-            <span className="text-sm text-muted-foreground bg-accent px-2 py-1 rounded-md">{guests}</span>
+            <Label htmlFor="guests">Number of Guests</Label>
+            <span className="text-sm text-muted-foreground bg-accent px-2 py-1 rounded-md">{eventData.guests}</span>
           </div>
           <div className="flex items-center space-x-4">
             <Users className="text-muted-foreground" size={16} />
@@ -166,8 +245,8 @@ const EventBasicDetailsForm = ({ onNextStep, onPrevStep, selectedType }: EventBa
               min={1}
               max={500}
               step={1}
-              value={[guests]}
-              onValueChange={(values) => setGuests(values[0])}
+              value={[eventData.guests]}
+              onValueChange={(values) => setEventData(prev => ({ ...prev, guests: values[0] }))}
               className="flex-1"
             />
           </div>
@@ -175,8 +254,8 @@ const EventBasicDetailsForm = ({ onNextStep, onPrevStep, selectedType }: EventBa
 
         <motion.div className="space-y-4" variants={itemVariants}>
           <div className="flex items-center justify-between">
-            <Label htmlFor="budget">Event Budget: ${budget}</Label>
-            <span className="text-sm text-muted-foreground bg-accent px-2 py-1 rounded-md">${budget}</span>
+            <Label htmlFor="budget">Event Budget</Label>
+            <span className="text-sm text-muted-foreground bg-accent px-2 py-1 rounded-md">${eventData.budget}</span>
           </div>
           <div className="flex items-center space-x-4">
             <DollarSign className="text-muted-foreground" size={16} />
@@ -185,20 +264,20 @@ const EventBasicDetailsForm = ({ onNextStep, onPrevStep, selectedType }: EventBa
               min={100}
               max={50000}
               step={100}
-              value={[budget]}
-              onValueChange={(values) => setBudget(values[0])}
+              value={[eventData.budget]}
+              onValueChange={(values) => setEventData(prev => ({ ...prev, budget: values[0] }))}
               className="flex-1"
             />
           </div>
         </motion.div>
 
         <motion.div className="space-y-2" variants={itemVariants}>
-          <Label htmlFor="eventDescription">Description (optional)</Label>
+          <Label htmlFor="description">Description (optional)</Label>
           <Textarea
-            id="eventDescription"
+            id="description"
             placeholder="Tell us about your event..."
-            value={eventDescription}
-            onChange={(e) => setEventDescription(e.target.value)}
+            value={eventData.description}
+            onChange={handleInputChange}
             rows={4}
             className="transition-all focus:ring-2 focus:ring-primary/30 resize-none"
           />

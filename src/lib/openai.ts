@@ -1,3 +1,5 @@
+
+// Use provided OpenAI API key from user
 const OPENAI_API_KEY = "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";
 
 interface ChatCompletionRequest {
@@ -63,7 +65,7 @@ export const generateAIEventSuggestions = async (
     messages: [
       {
         role: "system",
-        content: "You are an expert event planner with years of experience creating memorable events. Your suggestions should be creative, practical, and tailored to the specific event type and details provided."
+        content: "You are an expert event planner with years of experience creating memorable events. Your suggestions should be creative, practical, and tailored to the specific event type and details provided. Format your response in clear sections with headers and bullet points where appropriate."
       },
       {
         role: "user",
@@ -90,11 +92,41 @@ export const generateAIEventSuggestions = async (
     }
 
     const data = await response.json() as ChatCompletionResponse;
-    console.log("OpenAI API response received:", data);
+    console.log("OpenAI API response received.");
     return data.choices[0].message.content;
   } catch (error) {
     console.error("Error generating AI suggestions:", error);
-    return "Sorry, I couldn't generate suggestions at this time. Please try again later.";
+    // Return a more helpful error message with fallback content
+    return `
+# Event Suggestions for ${eventType}
+
+## Theme Ideas
+- Elegant Garden Party
+- Vintage Glamour
+- Modern Minimalist
+
+## Decor Suggestions
+- Use string lights and floral arrangements for a warm atmosphere
+- Create photo walls for memorable pictures
+- Incorporate personalized signage and table settings
+
+## Food & Beverage
+- Consider a buffet style service for flexibility
+- Include both alcoholic and non-alcoholic signature drinks
+- Dessert station with variety of options
+
+## Entertainment
+- Live music or DJ for atmosphere
+- Interactive activities like photo booths
+- Consider lawn games if outdoors
+
+## Special Touches
+- Personalized party favors for guests
+- Grand entrance or exit moment
+- Custom lighting effects
+
+(Note: The AI assistant is currently unavailable. These are general suggestions.)
+    `;
   }
 };
 
@@ -147,7 +179,29 @@ export const generateEventHistory = async (eventType: string): Promise<string> =
     return data.choices[0].message.content;
   } catch (error) {
     console.error("Error generating event history:", error);
-    return "Sorry, I couldn't retrieve information about this celebration at this time.";
+    // Return a fallback response with generic information
+    return `
+# History of ${eventType.charAt(0).toUpperCase() + eventType.slice(1)} Celebrations
+
+## Origins
+The tradition of ${eventType} celebrations dates back many centuries and has evolved across various cultures. These gatherings have historically served as important social milestones.
+
+## Cultural Significance
+${eventType.charAt(0).toUpperCase() + eventType.slice(1)} celebrations hold deep cultural meaning in most societies, often marking important transitions or honoring special relationships.
+
+## Traditional Practices
+Traditional ${eventType} ceremonies typically involved family gatherings, special foods, and customs specific to the local culture. Many of these traditions continue today.
+
+## Modern Interpretations
+Today's ${eventType} celebrations blend traditional elements with contemporary preferences, allowing for more personalization and creative expression.
+
+## Interesting Facts
+- Different cultures celebrate ${eventType}s with unique customs and rituals
+- The modern form of ${eventType} celebrations began to take shape in the 20th century
+- There are regional variations in how ${eventType}s are celebrated around the world
+
+(Note: The AI assistant is currently unavailable. This is general information about ${eventType} celebrations.)
+    `;
   }
 };
 
@@ -157,7 +211,7 @@ export const chatWithAssistant = async (message: string): Promise<string> => {
     messages: [
       {
         role: "system",
-        content: "You are the helpful event planning assistant for Celebration Central. You provide informative, specific answers about event planning, celebration traditions, and our website services. Focus on giving practical advice and specific suggestions for event planning. Always be friendly, professional, and engaging."
+        content: "You are the helpful event planning assistant for Celebration Central. You provide informative, specific answers about event planning, celebration traditions, and our website services. Focus on giving practical advice and specific suggestions for event planning. Always be friendly, professional, and engaging. Format your responses with markdown for better readability and avoid using asterisks for emphasis (use bold or headers instead)."
       },
       {
         role: "user",
@@ -184,6 +238,25 @@ export const chatWithAssistant = async (message: string): Promise<string> => {
     const data = await response.json() as ChatCompletionResponse;
     return data.choices[0].message.content;
   } catch (error) {
-    return handleOpenAIError(error);
+    // Return a helpful fallback response
+    return `
+# Hello from Celebration Central
+
+I'm currently having trouble connecting to my knowledge base. Here are some general tips that might help:
+
+## Event Planning Basics
+- Start with a clear budget and guest list
+- Book venues early, especially for popular dates
+- Consider hiring professionals for complex events
+- Don't forget to plan for weather contingencies for outdoor events
+
+## Our Services
+- Celebration Central helps you plan various types of events
+- We connect you with qualified vendors
+- Our platform offers planning tools and checklists
+- We provide AI-powered suggestions for your events
+
+Please try asking your question again later when our connection is restored.
+    `;
   }
 };

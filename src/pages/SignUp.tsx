@@ -14,11 +14,11 @@ import { FirebaseError } from 'firebase/app';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { UserRole } from '@/context/AuthContext';
-import RoleSelector from '@/components/auth/RoleSelector';
-import { CheckCircle, ChevronRight, ChevronLeft } from 'lucide-react';
 import { MultiStepProgress } from '@/components/ui/multi-step-progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { motion } from 'framer-motion';
+import { User, Settings, Calendar, ChevronRight, ChevronLeft, CheckCircle, Mail, Building } from 'lucide-react';
 
 enum SignUpStep {
   AccountDetails,
@@ -26,6 +26,21 @@ enum SignUpStep {
   VendorDetails,
   Complete
 }
+
+const roleOptions = [
+  { 
+    id: 'user', 
+    title: 'User', 
+    description: 'Plan and manage your personal events',
+    icon: <Calendar className="h-8 w-8 text-blue-500" />
+  },
+  { 
+    id: 'vendor', 
+    title: 'Vendor', 
+    description: 'Offer services for events',
+    icon: <Building className="h-8 w-8 text-green-500" />
+  }
+];
 
 const SignUp = () => {
   const { toast } = useToast();
@@ -144,8 +159,8 @@ const SignUp = () => {
       if (role === 'vendor') {
         setStep(SignUpStep.Complete);
       } else {
-        // Redirect to appropriate dashboard
-        navigate(role === 'admin' ? '/admin' : '/dashboard');
+        // Redirect to dashboard
+        navigate('/dashboard');
       }
     } catch (error) {
       console.error("Signup error:", error);
@@ -203,18 +218,23 @@ const SignUp = () => {
     <>
       <Navbar />
 
-      <main className="min-h-screen flex items-center justify-center px-6 py-24">
-        <div className="w-full max-w-md">
-          <Card className="border-2 shadow-md">
+      <main className="min-h-screen flex items-center justify-center px-6 py-24 bg-gradient-to-b from-background to-background/80">
+        <motion.div 
+          className="w-full max-w-md"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          <Card className="border-2 shadow-lg">
             <CardHeader className="space-y-1 text-center">
-              <CardTitle className="text-3xl font-display font-bold bg-gradient-to-r from-primary to-secondary text-transparent bg-clip-text">
-                {step === SignUpStep.Complete ? 'Welcome Aboard!' : 'Sign Up'}
+              <CardTitle className="text-3xl font-display font-bold bg-gradient-to-r from-primary to-purple-500 text-transparent bg-clip-text">
+                {step === SignUpStep.Complete ? 'Welcome Aboard!' : 'Create Your Account'}
               </CardTitle>
               <CardDescription className="text-muted-foreground">
-                {step === SignUpStep.AccountDetails && "Create your account to get started"}
-                {step === SignUpStep.Role && "Choose your account type"}
+                {step === SignUpStep.AccountDetails && "Join Celebration Central to start planning unforgettable events"}
+                {step === SignUpStep.Role && "How will you be using Celebration Central?"}
                 {step === SignUpStep.VendorDetails && "Tell us about your business"}
-                {step === SignUpStep.Complete && "Your vendor account is ready"}
+                {step === SignUpStep.Complete && "Your vendor account is ready to go"}
               </CardDescription>
             </CardHeader>
             
@@ -227,19 +247,31 @@ const SignUp = () => {
               )}
               
               {step === SignUpStep.AccountDetails && (
-                <>
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                  className="space-y-4"
+                >
                   <div className="space-y-2">
-                    <Label htmlFor="name">Full Name</Label>
+                    <Label htmlFor="name" className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      Full Name
+                    </Label>
                     <Input 
                       id="name" 
                       placeholder="Enter your name" 
                       value={displayName}
                       onChange={(e) => setDisplayName(e.target.value)}
                       autoComplete="name"
+                      className="transition-all focus:ring-2 focus:ring-primary/30"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="email" className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      Email
+                    </Label>
                     <Input 
                       id="email" 
                       type="email" 
@@ -247,6 +279,7 @@ const SignUp = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       autoComplete="email"
+                      className="transition-all focus:ring-2 focus:ring-primary/30"
                     />
                   </div>
                   <div className="space-y-2">
@@ -257,6 +290,7 @@ const SignUp = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       autoComplete="new-password"
+                      className="transition-all focus:ring-2 focus:ring-primary/30"
                     />
                   </div>
                   <div className="space-y-2">
@@ -267,11 +301,12 @@ const SignUp = () => {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       autoComplete="new-password"
+                      className="transition-all focus:ring-2 focus:ring-primary/30"
                     />
                   </div>
                   <Button 
                     onClick={handleNextStep} 
-                    className="w-full" 
+                    className="w-full transition-all hover:shadow-md" 
                     disabled={isLoading}
                   >
                     Continue
@@ -293,7 +328,7 @@ const SignUp = () => {
                     variant="outline" 
                     onClick={handleGoogleSignUp} 
                     disabled={isLoading} 
-                    className="w-full"
+                    className="w-full transition-all hover:border-primary/50"
                   >
                     <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                       <path
@@ -315,15 +350,45 @@ const SignUp = () => {
                     </svg>
                     Sign up with Google
                   </Button>
-                </>
+                </motion.div>
               )}
               
               {step === SignUpStep.Role && (
-                <>
-                  <RoleSelector 
-                    selectedRole={role}
-                    onSelectRole={setRole}
-                  />
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                  className="space-y-4"
+                >
+                  <p className="text-sm text-center text-muted-foreground">
+                    Choose how you'll use Celebration Central
+                  </p>
+                  
+                  <div className="grid gap-4">
+                    {roleOptions.map((option) => (
+                      <div 
+                        key={option.id} 
+                        className={`
+                          p-4 border-2 rounded-lg cursor-pointer transition-all
+                          ${role === option.id ? 'border-primary bg-primary/5' : 'border-muted hover:border-primary/50'}
+                        `}
+                        onClick={() => setRole(option.id as UserRole)}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0">
+                            {option.icon}
+                          </div>
+                          <div className="flex-grow">
+                            <h3 className="font-medium">{option.title}</h3>
+                            <p className="text-sm text-muted-foreground">{option.description}</p>
+                          </div>
+                          <div className={`w-5 h-5 rounded-full ${role === option.id ? 'bg-primary' : 'border-2 border-muted'}`}>
+                            {role === option.id && <CheckCircle className="w-5 h-5 text-primary-foreground" />}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                   
                   <div className="flex justify-between pt-4">
                     <Button 
@@ -343,11 +408,16 @@ const SignUp = () => {
                       <ChevronRight className="ml-2 h-4 w-4" />
                     </Button>
                   </div>
-                </>
+                </motion.div>
               )}
               
               {step === SignUpStep.VendorDetails && (
-                <>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                  className="space-y-4"
+                >
                   <div className="space-y-2">
                     <Label htmlFor="business-name">Business Name</Label>
                     <Input 
@@ -355,6 +425,7 @@ const SignUp = () => {
                       placeholder="Your business name"
                       value={businessName}
                       onChange={(e) => setBusinessName(e.target.value)}
+                      className="transition-all focus:ring-2 focus:ring-primary/30"
                     />
                   </div>
                   
@@ -366,14 +437,22 @@ const SignUp = () => {
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       type="tel"
+                      className="transition-all focus:ring-2 focus:ring-primary/30"
                     />
                   </div>
                   
                   <div className="space-y-2">
                     <Label>Services Offered</Label>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-3">
                       {serviceOptions.map((service) => (
-                        <div key={service.id} className="flex items-center space-x-2">
+                        <div 
+                          key={service.id} 
+                          className={`
+                            p-2 border rounded-md cursor-pointer transition-all flex items-center space-x-2
+                            ${vendorServices.includes(service.id) ? 'border-primary bg-primary/5' : 'border-muted hover:border-primary/50'}
+                          `}
+                          onClick={() => toggleService(service.id)}
+                        >
                           <Checkbox 
                             id={service.id} 
                             checked={vendorServices.includes(service.id)}
@@ -381,7 +460,7 @@ const SignUp = () => {
                           />
                           <label 
                             htmlFor={service.id}
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                           >
                             {service.label}
                           </label>
@@ -407,7 +486,7 @@ const SignUp = () => {
                       {isLoading ? "Creating Account..." : "Create Account"}
                     </Button>
                   </div>
-                </>
+                </motion.div>
               )}
               
               {step === SignUpStep.Complete && (
@@ -446,7 +525,7 @@ const SignUp = () => {
               </CardFooter>
             )}
           </Card>
-        </div>
+        </motion.div>
       </main>
 
       <Footer />

@@ -22,6 +22,14 @@ interface EventAIAssistantProps {
   onNextStep: () => void;
   onPrevStep: () => void;
   eventType: string;
+  eventDetails?: {
+    title: string;
+    date: string;
+    location: string;
+    guests: number;
+    budget?: number;
+    preferences?: string;
+  };
 }
 
 interface Suggestion {
@@ -30,7 +38,7 @@ interface Suggestion {
   text: string;
 }
 
-const EventAIAssistant = ({ onNextStep, onPrevStep, eventType }: EventAIAssistantProps) => {
+const EventAIAssistant = ({ onNextStep, onPrevStep, eventType, eventDetails }: EventAIAssistantProps) => {
   const { toast } = useToast();
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -49,22 +57,16 @@ const EventAIAssistant = ({ onNextStep, onPrevStep, eventType }: EventAIAssistan
       setError(null);
       
       try {
-        // Get event details from sessionStorage for demo purposes
-        const eventTitle = sessionStorage.getItem('eventTitle') || `My ${eventType.charAt(0).toUpperCase() + eventType.slice(1)}`;
-        const eventDate = sessionStorage.getItem('eventDate') || "2025-08-15";
-        const eventLocation = sessionStorage.getItem('eventLocation') || "Celebration Venue";
-        const eventGuests = Number(sessionStorage.getItem('eventGuests')) || 50;
-        
-        // In a real app, this would come from context or props
-        const eventDetails = {
-          title: eventTitle,
-          date: eventDate,
-          location: eventLocation,
-          guests: eventGuests,
-          budget: 2000
+        // Use provided eventDetails or fallback to stored/default values
+        const details = eventDetails || {
+          title: sessionStorage.getItem('eventTitle') || `My ${eventType.charAt(0).toUpperCase() + eventType.slice(1)}`,
+          date: sessionStorage.getItem('eventDate') || "2025-08-15",
+          location: sessionStorage.getItem('eventLocation') || "Celebration Venue",
+          guests: Number(sessionStorage.getItem('eventGuests')) || 50,
+          budget: Number(sessionStorage.getItem('eventBudget')) || 2000
         };
         
-        const aiResponse = await generateAIEventSuggestions(eventType, eventDetails);
+        const aiResponse = await generateAIEventSuggestions(eventType, details);
         
         // Parse the AI response into suggestion categories
         if (aiResponse) {
@@ -108,7 +110,7 @@ const EventAIAssistant = ({ onNextStep, onPrevStep, eventType }: EventAIAssistan
     };
 
     loadInitialSuggestions();
-  }, [eventType, toast, initialSuggestionsLoaded]);
+  }, [eventType, toast, initialSuggestionsLoaded, eventDetails]);
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
@@ -124,21 +126,16 @@ const EventAIAssistant = ({ onNextStep, onPrevStep, eventType }: EventAIAssistan
     setError(null);
 
     try {
-      // Get stored event details if available
-      const eventTitle = sessionStorage.getItem('eventTitle') || `My ${eventType.charAt(0).toUpperCase() + eventType.slice(1)}`;
-      const eventDate = sessionStorage.getItem('eventDate') || "2025-08-15";
-      const eventLocation = sessionStorage.getItem('eventLocation') || "Celebration Venue";
-      const eventGuests = Number(sessionStorage.getItem('eventGuests')) || 50;
-      
-      const eventDetails = {
-        title: eventTitle,
-        date: eventDate,
-        location: eventLocation,
-        guests: eventGuests,
+      // Use provided eventDetails or fallback to stored/default values
+      const details = eventDetails || {
+        title: sessionStorage.getItem('eventTitle') || `My ${eventType.charAt(0).toUpperCase() + eventType.slice(1)}`,
+        date: sessionStorage.getItem('eventDate') || "2025-08-15",
+        location: sessionStorage.getItem('eventLocation') || "Celebration Venue",
+        guests: Number(sessionStorage.getItem('eventGuests')) || 50,
         preferences: prompt
       };
       
-      const response = await generateAIEventSuggestions(eventType, eventDetails);
+      const response = await generateAIEventSuggestions(eventType, details);
       
       if (response) {
         // Parse the AI response
@@ -171,51 +168,94 @@ const EventAIAssistant = ({ onNextStep, onPrevStep, eventType }: EventAIAssistan
   const parseAIResponse = (aiText: string): Suggestion[] => {
     const result: Suggestion[] = [];
     
-    // Split by numbered sections or bullet points
-    const sections = aiText.split(/\d+\.\s|\n\s*-\s+|\n\n/).filter(Boolean);
+    // First try to identify markdown sections
+    const markdownSections = aiText.split(/(?=##\s+)/);
+    if (markdownSections.length > 1) {
+      markdownSections.forEach((section, index) => {
+        // Extract the header which will be our category
+        const headerMatch = section.match(/^##\s+(.*)/);
+        if (headerMatch) {
+          const category = headerMatch[1].trim();
+          // Remove the header from content
+          const content = section.replace(/^##\s+.*\n/, '').trim();
+          
+          // Split content by bullet points or numbered items if they exist
+          const items = content.split(/\n\s*[-*]\s+|\n\s*\d+\.\s+/).filter(Boolean);
+          
+          if (items.length > 1) {
+            // Add each bullet point as a separate suggestion
+            items.forEach((item, subIndex) => {
+              if (item.trim()) {
+                result.push({
+                  id: `ai-${index}-${subIndex}`,
+                  category,
+                  text: item.trim()
+                });
+              }
+            });
+          } else {
+            // Add the whole content as one suggestion
+            result.push({
+              id: `ai-${index}`,
+              category,
+              text: content
+            });
+          }
+        }
+      });
+    }
     
-    let currentCategory = "";
-    
-    sections.forEach((section, index) => {
-      const trimmed = section.trim();
+    // If markdown parsing didn't work well, fall back to the old parsing method
+    if (result.length < 2) {
+      // Clear existing results to start fresh
+      result.length = 0;
       
-      // Skip empty sections
-      if (!trimmed) return;
+      // Split by numbered sections or bullet points
+      const sections = aiText.split(/\d+\.\s|\n\s*-\s+|\n\n/).filter(Boolean);
       
-      // Check if this looks like a category header
-      if (trimmed.toUpperCase() === trimmed && trimmed.length < 30) {
-        currentCategory = trimmed;
-        return;
-      }
+      let currentCategory = "";
       
-      // If there's a colon early in the text, it might be a category:content format
-      const colonIndex = trimmed.indexOf(':');
-      if (colonIndex > 0 && colonIndex < 20) {
-        const possibleCategory = trimmed.substring(0, colonIndex).trim();
-        const content = trimmed.substring(colonIndex + 1).trim();
+      sections.forEach((section, index) => {
+        const trimmed = section.trim();
         
-        result.push({
-          id: `ai-${index}`,
-          category: possibleCategory,
-          text: content
-        });
-      } else if (currentCategory) {
-        // Use the current category if we found one earlier
-        result.push({
-          id: `ai-${index}`,
-          category: currentCategory,
-          text: trimmed
-        });
-      } else {
-        // If we can't determine a category, use a generic one
-        const categories = ["Theme", "Décor", "Food", "Entertainment", "Special Touch"];
-        result.push({
-          id: `ai-${index}`,
-          category: categories[index % categories.length],
-          text: trimmed
-        });
-      }
-    });
+        // Skip empty sections
+        if (!trimmed) return;
+        
+        // Check if this looks like a category header
+        if (trimmed.toUpperCase() === trimmed && trimmed.length < 30) {
+          currentCategory = trimmed;
+          return;
+        }
+        
+        // If there's a colon early in the text, it might be a category:content format
+        const colonIndex = trimmed.indexOf(':');
+        if (colonIndex > 0 && colonIndex < 20) {
+          const possibleCategory = trimmed.substring(0, colonIndex).trim();
+          const content = trimmed.substring(colonIndex + 1).trim();
+          
+          result.push({
+            id: `ai-${index}`,
+            category: possibleCategory,
+            text: content
+          });
+        } else if (currentCategory) {
+          // Use the current category if we found one earlier
+          result.push({
+            id: `ai-${index}`,
+            category: currentCategory,
+            text: trimmed
+          });
+        } else {
+          // If we can't determine a category, use a generic one
+          const categories = ["Theme", "Décor", "Food", "Entertainment", "Special Touch"];
+          result.push({
+            id: `ai-${index}`,
+            category: categories[index % categories.length],
+            text: trimmed
+          });
+        }
+      });
+    }
     
     return result;
   };
