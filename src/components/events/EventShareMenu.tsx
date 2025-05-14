@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { Share, Link, Copy, Check, WhatsApp } from 'lucide-react';
+import { Share, Link, Copy, Check, MessageSquare } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { EventItem } from '@/context/EventContext';
 
@@ -83,7 +83,7 @@ const EventShareMenu = ({ event }: EventShareMenuProps) => {
         </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleWhatsAppShare} className="cursor-pointer">
-          <WhatsApp className="mr-2 h-4 w-4" />
+          <MessageSquare className="mr-2 h-4 w-4" />
           Share on WhatsApp
         </DropdownMenuItem>
         <DropdownMenuItem onClick={handleCopyLink} className="cursor-pointer">

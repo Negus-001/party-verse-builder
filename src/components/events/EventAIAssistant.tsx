@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -15,7 +14,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { motion, AnimatePresence } from 'framer-motion';
-import { generateAIEventSuggestions } from '@/lib/openai';
+import { useAISuggestions } from '@/hooks/use-ai-suggestions';
 import EventHistory from './EventHistory';
 
 interface EventAIAssistantProps {
@@ -41,11 +40,12 @@ interface Suggestion {
 const EventAIAssistant = ({ onNextStep, onPrevStep, eventType, eventDetails }: EventAIAssistantProps) => {
   const { toast } = useToast();
   const [prompt, setPrompt] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [initialSuggestionsLoaded, setInitialSuggestionsLoaded] = useState(false);
   const [showEventHistory, setShowEventHistory] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  
+  // Use our custom hook
+  const { isGenerating, error, generateSuggestions } = useAISuggestions();
 
   useEffect(() => {
     // Load initial suggestions automatically
@@ -53,38 +53,28 @@ const EventAIAssistant = ({ onNextStep, onPrevStep, eventType, eventDetails }: E
       // Only load once
       if (initialSuggestionsLoaded) return;
       
-      setIsGenerating(true);
-      setError(null);
+      // Use provided eventDetails or fallback to stored/default values
+      const details = eventDetails || {
+        title: sessionStorage.getItem('eventTitle') || `My ${eventType.charAt(0).toUpperCase() + eventType.slice(1)}`,
+        date: sessionStorage.getItem('eventDate') || "2025-08-15",
+        location: sessionStorage.getItem('eventLocation') || "Celebration Venue",
+        guests: Number(sessionStorage.getItem('eventGuests')) || 50,
+        budget: Number(sessionStorage.getItem('eventBudget')) || 2000
+      };
       
-      try {
-        // Use provided eventDetails or fallback to stored/default values
-        const details = eventDetails || {
-          title: sessionStorage.getItem('eventTitle') || `My ${eventType.charAt(0).toUpperCase() + eventType.slice(1)}`,
-          date: sessionStorage.getItem('eventDate') || "2025-08-15",
-          location: sessionStorage.getItem('eventLocation') || "Celebration Venue",
-          guests: Number(sessionStorage.getItem('eventGuests')) || 50,
-          budget: Number(sessionStorage.getItem('eventBudget')) || 2000
-        };
+      const aiResponse = await generateSuggestions(eventType, details);
+      
+      // Parse the AI response into suggestion categories
+      if (aiResponse) {
+        const parsedSuggestions = parseAIResponse(aiResponse);
+        setSuggestions(parsedSuggestions);
+        setInitialSuggestionsLoaded(true);
         
-        const aiResponse = await generateAIEventSuggestions(eventType, details);
-        
-        // Parse the AI response into suggestion categories
-        if (aiResponse) {
-          const parsedSuggestions = parseAIResponse(aiResponse);
-          setSuggestions(parsedSuggestions);
-          setInitialSuggestionsLoaded(true);
-          
-          toast({
-            title: "Suggestions generated",
-            description: "We've created personalized ideas for your event",
-          });
-        } else {
-          throw new Error("Failed to generate suggestions");
-        }
-      } catch (error) {
-        console.error("Error generating initial suggestions:", error);
-        setError("We couldn't connect to our AI service. Please try again or enter your own prompt.");
-        
+        toast({
+          title: "Suggestions generated",
+          description: "We've created personalized ideas for your event",
+        });
+      } else {
         // Fallback suggestions
         setSuggestions([
           {
@@ -104,13 +94,11 @@ const EventAIAssistant = ({ onNextStep, onPrevStep, eventType, eventDetails }: E
           },
         ]);
         setInitialSuggestionsLoaded(true);
-      } finally {
-        setIsGenerating(false);
       }
     };
 
     loadInitialSuggestions();
-  }, [eventType, toast, initialSuggestionsLoaded, eventDetails]);
+  }, [eventType, toast, initialSuggestionsLoaded, eventDetails, generateSuggestions]);
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
@@ -122,49 +110,32 @@ const EventAIAssistant = ({ onNextStep, onPrevStep, eventType, eventDetails }: E
       return;
     }
 
-    setIsGenerating(true);
-    setError(null);
-
-    try {
-      // Use provided eventDetails or fallback to stored/default values
-      const details = eventDetails || {
-        title: sessionStorage.getItem('eventTitle') || `My ${eventType.charAt(0).toUpperCase() + eventType.slice(1)}`,
-        date: sessionStorage.getItem('eventDate') || "2025-08-15",
-        location: sessionStorage.getItem('eventLocation') || "Celebration Venue",
-        guests: Number(sessionStorage.getItem('eventGuests')) || 50,
-        preferences: prompt
-      };
+    // Use provided eventDetails or fallback to stored/default values
+    const details = eventDetails || {
+      title: sessionStorage.getItem('eventTitle') || `My ${eventType.charAt(0).toUpperCase() + eventType.slice(1)}`,
+      date: sessionStorage.getItem('eventDate') || "2025-08-15",
+      location: sessionStorage.getItem('eventLocation') || "Celebration Venue",
+      guests: Number(sessionStorage.getItem('eventGuests')) || 50,
+      preferences: prompt
+    };
+    
+    const response = await generateSuggestions(eventType, details);
+    
+    if (response) {
+      // Parse the AI response
+      const newSuggestions = parseAIResponse(response);
+      setSuggestions(newSuggestions);
       
-      const response = await generateAIEventSuggestions(eventType, details);
-      
-      if (response) {
-        // Parse the AI response
-        const newSuggestions = parseAIResponse(response);
-        setSuggestions(newSuggestions);
-        
-        setPrompt('');
-        
-        toast({
-          title: "New suggestions generated",
-          description: "We've updated your event ideas based on your request",
-        });
-      } else {
-        throw new Error("Failed to generate suggestions");
-      }
-    } catch (error) {
-      console.error("Error generating suggestions:", error);
-      setError("We couldn't connect to our AI service. Please try again later.");
+      setPrompt('');
       
       toast({
-        title: "Error",
-        description: "Failed to generate suggestions. Please try again.",
-        variant: "destructive",
+        title: "New suggestions generated",
+        description: "We've updated your event ideas based on your request",
       });
-    } finally {
-      setIsGenerating(false);
     }
   };
 
+  // Helper function to parse AI response text into structured suggestions
   const parseAIResponse = (aiText: string): Suggestion[] => {
     const result: Suggestion[] = [];
     
