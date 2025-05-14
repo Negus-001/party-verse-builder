@@ -1,257 +1,207 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
-import { Sparkles, Lightbulb, BookOpen, Copy, ThumbsUp, Download, MessageSquare } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { generateAIEventSuggestions } from '@/lib/openai';
-import { useAuth } from '@/context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { Loader2, Sparkles, AlertCircle } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 
 const Inspiration = () => {
-  const { toast } = useToast();
-  const { currentUser } = useAuth();
-  const navigate = useNavigate();
-  const [eventType, setEventType] = useState('wedding');
-  const [prompt, setPrompt] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [result, setResult] = useState('');
-  
-  // Predefined prompts by event type
-  const predefinedPrompts = {
-    wedding: [
-      "Suggest themes for a summer beach wedding with 80 guests.",
-      "What are some unique wedding reception activities for guests?",
-      "Help me plan a rustic barn wedding on a budget of $15,000."
-    ],
-    birthday: [
-      "Ideas for a surprise 40th birthday party.",
-      "What are some creative themes for a child's 10th birthday?",
-      "Help me plan an outdoor birthday celebration for 30 people."
-    ],
-    corporate: [
-      "Suggest team-building activities for a corporate retreat.",
-      "Ideas for a tech company holiday party with 100 employees.",
-      "Help me plan a product launch event that will impress investors."
-    ],
-    socialGathering: [
-      "Unique ideas for a summer backyard party.",
-      "What are some fun themes for a housewarming party?",
-      "Help me plan a casual reunion for old friends."
-    ]
-  };
-  
-  const handlePromptSelect = (prePrompt: string) => {
-    setPrompt(prePrompt);
-  };
-  
-  const handleGetInspiration = async () => {
-    if (!prompt.trim()) {
-      toast({
-        title: "Empty prompt",
-        description: "Please enter a prompt or select one from the suggestions.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    if (!currentUser) {
-      toast({
-        title: "Login Required",
-        description: "Please log in to use the AI inspiration feature.",
-        variant: "destructive",
-      });
-      navigate('/login');
-      return;
-    }
-    
-    setIsLoading(true);
+  const [selectedEventType, setSelectedEventType] = useState('wedding');
+  const [preferences, setPreferences] = useState('');
+  const [suggestions, setSuggestions] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const eventTypes = [
+    { id: 'wedding', label: 'Wedding' },
+    { id: 'birthday', label: 'Birthday' },
+    { id: 'corporate', label: 'Corporate' },
+    { id: 'party', label: 'Party' },
+    { id: 'babyshower', label: 'Baby Shower' },
+    { id: 'graduation', label: 'Graduation' },
+    { id: 'anniversary', label: 'Anniversary' },
+  ];
+
+  const generateSuggestions = async () => {
+    setLoading(true);
+    setError(null);
     
     try {
-      const mockEventDetails = {
-        title: `${eventType.charAt(0).toUpperCase() + eventType.slice(1)} Event`,
-        date: "2024-12-25",
-        location: "California",
-        guests: 50,
-        preferences: prompt
-      };
-      
-      const suggestion = await generateAIEventSuggestions(eventType, mockEventDetails);
-      setResult(suggestion);
-    } catch (error) {
-      console.error("Error generating AI suggestions:", error);
-      toast({
-        title: "Error",
-        description: "Failed to generate suggestions. Please try again later.",
-        variant: "destructive",
-      });
+      const suggestionsText = await generateAIEventSuggestions(selectedEventType, preferences);
+      setSuggestions(suggestionsText);
+    } catch (err) {
+      console.error("Error generating suggestions:", err);
+      setError("Failed to generate suggestions. Please try again later.");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
-  
-  const handleCopyToClipboard = () => {
-    navigator.clipboard.writeText(result);
-    toast({
-      title: "Copied!",
-      description: "Suggestions copied to clipboard",
-    });
-  };
+
+  useEffect(() => {
+    generateSuggestions();
+  }, []);
 
   return (
     <>
       <Navbar />
       
-      <main className="min-h-screen py-24 px-6">
-        <div className="container mx-auto max-w-6xl">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-            <div>
-              <h1 className="text-3xl md:text-4xl font-display font-bold mb-2">AI Event Inspiration</h1>
-              <p className="text-muted-foreground">Get creative ideas and planning assistance for your next event</p>
-            </div>
-          </div>
+      <main className="min-h-screen py-24 px-6 bg-gradient-to-b from-background to-accent/10">
+        <div className="container max-w-7xl mx-auto">
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="text-center mb-12"
+          >
+            <h1 className="text-3xl md:text-4xl font-display font-bold mb-2 bg-gradient-to-r from-primary to-purple-400 text-transparent bg-clip-text">
+              Get Inspired for Your Event
+            </h1>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Discover creative ideas and unique suggestions for your celebration
+            </p>
+          </motion.div>
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Input Section */}
-            <div className="lg:col-span-1 space-y-6">
-              <Card>
+            {/* Sidebar - Controls */}
+            <motion.div 
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              <Card className="sticky top-24">
                 <CardHeader>
                   <CardTitle className="flex items-center">
-                    <Sparkles className="mr-2 h-5 w-5 text-primary" />
-                    Get AI Suggestions
+                    <Sparkles className="h-5 w-5 mr-2 text-primary" />
+                    AI Inspiration Generator
                   </CardTitle>
+                  <CardDescription>
+                    Get personalized event suggestions using our AI assistant
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="eventType">Event Type</Label>
-                    <Select 
-                      value={eventType} 
-                      onValueChange={setEventType}
+                    <label className="text-sm font-medium">Event Type</label>
+                    <Tabs 
+                      defaultValue={selectedEventType} 
+                      value={selectedEventType}
+                      onValueChange={setSelectedEventType}
+                      className="w-full"
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select event type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="wedding">Wedding</SelectItem>
-                        <SelectItem value="birthday">Birthday</SelectItem>
-                        <SelectItem value="corporate">Corporate</SelectItem>
-                        <SelectItem value="socialGathering">Social Gathering</SelectItem>
-                      </SelectContent>
-                    </Select>
+                      <TabsList className="w-full grid grid-cols-2 h-auto">
+                        {eventTypes.slice(0, 4).map(type => (
+                          <TabsTrigger 
+                            key={type.id} 
+                            value={type.id}
+                            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                          >
+                            {type.label}
+                          </TabsTrigger>
+                        ))}
+                      </TabsList>
+                      
+                      <TabsList className="w-full grid grid-cols-3 mt-2 h-auto">
+                        {eventTypes.slice(4).map(type => (
+                          <TabsTrigger 
+                            key={type.id} 
+                            value={type.id}
+                            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                          >
+                            {type.label}
+                          </TabsTrigger>
+                        ))}
+                      </TabsList>
+                    </Tabs>
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="prompt">Describe what you need help with</Label>
-                    <Textarea 
-                      id="prompt"
-                      placeholder="E.g., I need ideas for a rustic wedding with 100 guests and a $15,000 budget..."
-                      className="min-h-[120px]"
-                      value={prompt}
-                      onChange={(e) => setPrompt(e.target.value)}
+                    <label htmlFor="preferences" className="text-sm font-medium">
+                      Additional Preferences (Optional)
+                    </label>
+                    <Input
+                      id="preferences"
+                      placeholder="e.g., outdoor, eco-friendly, formal..."
+                      value={preferences}
+                      onChange={(e) => setPreferences(e.target.value)}
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Add specific preferences to get more tailored suggestions
+                    </p>
                   </div>
                   
                   <Button 
-                    onClick={handleGetInspiration}
+                    onClick={generateSuggestions} 
                     className="w-full"
-                    disabled={isLoading}
+                    disabled={loading}
                   >
-                    {isLoading ? 
-                      "Generating Ideas..." : 
+                    {loading ? (
                       <>
-                        <Lightbulb className="mr-2 h-4 w-4" />
-                        Get Inspiration
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Generating...
                       </>
-                    }
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Generate Ideas
+                      </>
+                    )}
                   </Button>
                 </CardContent>
               </Card>
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <BookOpen className="mr-2 h-5 w-5 text-primary" />
-                    Prompt Suggestions
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {predefinedPrompts[eventType as keyof typeof predefinedPrompts].map((prePrompt, index) => (
-                    <div 
-                      key={index} 
-                      className="p-3 border rounded-lg mb-3 cursor-pointer hover:bg-accent/50 transition-colors"
-                      onClick={() => handlePromptSelect(prePrompt)}
-                    >
-                      <p className="text-sm">{prePrompt}</p>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            </div>
+            </motion.div>
             
-            {/* Results Section */}
-            <div className="lg:col-span-2">
-              <Card className="h-full">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="flex items-center">
-                    <MessageSquare className="mr-2 h-5 w-5 text-primary" />
-                    AI Suggestions
+            {/* Main Content - Suggestions */}
+            <motion.div 
+              className="lg:col-span-2"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+            >
+              <Card className="border-2">
+                <CardHeader>
+                  <CardTitle>
+                    Event Suggestions for {selectedEventType.charAt(0).toUpperCase() + selectedEventType.slice(1)}
                   </CardTitle>
-                  {result && (
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={handleCopyToClipboard}
-                      >
-                        <Copy className="h-4 w-4 mr-1" />
-                        Copy
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => {
-                          toast({
-                            title: "Saved",
-                            description: "Suggestions saved to your favorites"
-                          });
-                        }}
-                      >
-                        <ThumbsUp className="h-4 w-4 mr-1" />
-                        Save
-                      </Button>
-                    </div>
+                  {preferences && (
+                    <CardDescription>
+                      With preferences: {preferences}
+                    </CardDescription>
                   )}
                 </CardHeader>
-                <CardContent className="pt-4">
-                  {result ? (
-                    <div className="prose max-w-none">
-                      <div className="whitespace-pre-wrap">
-                        {result.split('\n').map((line, i) => (
-                          <p key={i} className={line.match(/^\d+\.|\*/) ? 'mb-1' : 'mb-4'}>
-                            {line}
-                          </p>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center text-center h-[400px] text-muted-foreground">
-                      <Sparkles className="h-16 w-16 mb-4 opacity-20" />
-                      <h3 className="text-lg font-medium mb-2">No suggestions generated yet</h3>
-                      <p className="max-w-md">
-                        Select an event type, enter a prompt or choose from our suggestions, and click "Get Inspiration" to receive AI-powered event ideas.
+                <CardContent className="space-y-4">
+                  {loading && (
+                    <div className="py-8 text-center space-y-4">
+                      <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+                      <p className="text-muted-foreground">
+                        Our AI is creating personalized suggestions for your {selectedEventType}...
                       </p>
                     </div>
                   )}
+                  
+                  {error && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertTitle>Error</AlertTitle>
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  )}
+                  
+                  {!loading && !error && suggestions && (
+                    <div className="prose dark:prose-invert max-w-none">
+                      <ReactMarkdown>
+                        {suggestions}
+                      </ReactMarkdown>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
-            </div>
+            </motion.div>
           </div>
         </div>
       </main>

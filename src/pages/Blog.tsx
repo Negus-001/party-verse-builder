@@ -1,162 +1,157 @@
 
-import React from 'react';
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
-import { Card, CardContent, CardDescription, CardFooter, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { blogPosts } from '@/data/blogPosts';
+import BlogCard from '@/components/blog/BlogCard';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { CalendarDays, Search, User, ArrowUpRight, Clock } from 'lucide-react';
-import { Link } from 'react-router-dom';
-
-// Mock data for blog posts
-const blogPosts = [
-  {
-    id: 1,
-    title: '10 AI-Powered Tools That Will Transform Your Event Planning',
-    excerpt: 'Discover how artificial intelligence is revolutionizing the event planning industry with these innovative tools.',
-    image: 'https://images.unsplash.com/photo-1558008258-3256797b43f3',
-    date: 'April 10, 2024',
-    author: 'Sarah Johnson',
-    category: 'Technology',
-    readTime: '8 min read'
-  },
-  {
-    id: 2,
-    title: 'How to Create a Stunning Wedding on a Budget',
-    excerpt: 'Plan your dream wedding without breaking the bank with these creative money-saving tips and strategies.',
-    image: 'https://images.unsplash.com/photo-1520854221256-17451cc331bf',
-    date: 'April 5, 2024',
-    author: 'Michael Chen',
-    category: 'Weddings',
-    readTime: '12 min read'
-  },
-  {
-    id: 3,
-    title: 'The Ultimate Guide to Corporate Event Planning',
-    excerpt: 'Everything you need to know about planning successful corporate events that leave a lasting impression.',
-    image: 'https://images.unsplash.com/photo-1505373877841-8d25f7d46678',
-    date: 'March 28, 2024',
-    author: 'Jessica Taylor',
-    category: 'Corporate',
-    readTime: '15 min read'
-  },
-  {
-    id: 4,
-    title: 'Sustainable Event Planning: Reducing Your Environmental Impact',
-    excerpt: 'Learn how to plan eco-friendly events that minimize waste and environmental impact without sacrificing style.',
-    image: 'https://images.unsplash.com/photo-1497366754035-f200968a6e72',
-    date: 'March 20, 2024',
-    author: 'David Wilson',
-    category: 'Sustainability',
-    readTime: '10 min read'
-  },
-  {
-    id: 5,
-    title: 'Virtual Events: Best Practices and Tools for Remote Gatherings',
-    excerpt: 'Navigate the world of virtual events with these tips, tools, and strategies for engaging online experiences.',
-    image: 'https://images.unsplash.com/photo-1591115765373-5207764f72e7',
-    date: 'March 15, 2024',
-    author: 'Amanda Rodriguez',
-    category: 'Virtual Events',
-    readTime: '9 min read'
-  },
-  {
-    id: 6,
-    title: 'Creative Theme Ideas for Your Next Birthday Celebration',
-    excerpt: 'Surprise your loved ones with these unique and memorable birthday party themes for all ages.',
-    image: 'https://images.unsplash.com/photo-1530103862676-de8c9debad1d',
-    date: 'March 8, 2024',
-    author: 'Robert Kim',
-    category: 'Birthdays',
-    readTime: '7 min read'
-  }
-];
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Search, FileText } from 'lucide-react';
 
 const Blog = () => {
-  const [searchTerm, setSearchTerm] = React.useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeTag, setActiveTag] = useState<string | null>(null);
   
-  const filteredPosts = blogPosts.filter(post => 
-    post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    post.excerpt.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    post.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Get all unique tags from blog posts
+  const tags = Array.from(new Set(blogPosts.flatMap(post => post.tags)));
   
+  // Filter posts based on search query and active tag
+  const filteredPosts = blogPosts.filter(post => {
+    const matchesSearch = searchQuery === '' || 
+      post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      post.excerpt.toLowerCase().includes(searchQuery.toLowerCase());
+      
+    const matchesTag = activeTag === null || post.tags.includes(activeTag);
+    
+    return matchesSearch && matchesTag;
+  });
+  
+  // Featured post is the most recent one
+  const featuredPost = blogPosts[0];
+  const regularPosts = filteredPosts.filter(post => post.id !== featuredPost.id);
+  
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+  
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: { y: 0, opacity: 1 }
+  };
+
   return (
     <>
       <Navbar />
       
-      <main className="min-h-screen py-24 px-6">
-        <div className="container mx-auto">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-            <div>
-              <h1 className="text-3xl md:text-4xl font-display font-bold mb-2">Event Planning Blog</h1>
-              <p className="text-muted-foreground">Tips, trends, and inspiration for your next event</p>
-            </div>
-            <div className="relative w-full md:w-auto">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={18} />
-              <Input 
-                placeholder="Search articles..." 
-                className="pl-10 w-full md:w-[300px]"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+      <main className="min-h-screen py-24 px-6 bg-gradient-to-b from-background to-accent/5">
+        <motion.div 
+          className="container mx-auto"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          {/* Header */}
+          <div className="text-center mb-12">
+            <h1 className="text-3xl md:text-4xl font-display font-bold mb-2 bg-gradient-to-r from-primary to-purple-400 text-transparent bg-clip-text">
+              Event Planning Blog
+            </h1>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Discover tips, guides, and inspiration for planning your perfect celebration
+            </p>
+          </div>
+          
+          {/* Search and Filters */}
+          <div className="mb-8">
+            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+              <div className="relative w-full md:w-80">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={18} />
+                <Input
+                  placeholder="Search articles..."
+                  className="pl-10"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              
+              <ScrollArea className="w-full md:w-auto">
+                <div className="flex space-x-2 p-1">
+                  <Badge 
+                    variant={activeTag === null ? "default" : "outline"}
+                    className="cursor-pointer hover:bg-primary/80 transition-colors"
+                    onClick={() => setActiveTag(null)}
+                  >
+                    All
+                  </Badge>
+                  
+                  {tags.map((tag, index) => (
+                    <Badge 
+                      key={index}
+                      variant={activeTag === tag ? "default" : "outline"}
+                      className="cursor-pointer hover:bg-primary/80 transition-colors"
+                      onClick={() => setActiveTag(tag)}
+                    >
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              </ScrollArea>
             </div>
           </div>
           
-          {filteredPosts.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredPosts.map(post => (
-                <Card key={post.id} className="overflow-hidden hover:shadow-md transition-shadow">
-                  <div className="h-48 overflow-hidden">
-                    <img 
-                      src={post.image} 
-                      alt={post.title} 
-                      className="w-full h-full object-cover hover:scale-110 transition-transform duration-500"
-                    />
-                  </div>
-                  <CardContent className="pt-6">
-                    <Badge variant="outline" className="mb-2 bg-accent/50">
-                      {post.category}
-                    </Badge>
-                    <CardTitle className="text-xl mb-2">{post.title}</CardTitle>
-                    <CardDescription className="mb-4">{post.excerpt}</CardDescription>
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                      <div className="flex items-center">
-                        <User size={14} className="mr-1" />
-                        {post.author}
-                      </div>
-                      <div className="flex items-center">
-                        <CalendarDays size={14} className="mr-1" />
-                        {post.date}
-                      </div>
-                      <div className="flex items-center">
-                        <Clock size={14} className="mr-1" />
-                        {post.readTime}
-                      </div>
-                    </div>
-                  </CardContent>
-                  <CardFooter>
-                    <Button variant="ghost" className="w-full group">
-                      Read Article
-                      <ArrowUpRight size={16} className="ml-2 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-                    </Button>
-                  </CardFooter>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-16">
-              <h2 className="text-xl font-semibold mb-2">No articles found</h2>
-              <p className="text-muted-foreground mb-6">Try a different search term</p>
-              <Button onClick={() => setSearchTerm('')}>Clear Search</Button>
-            </div>
+          {/* Featured Post */}
+          {!searchQuery && !activeTag && (
+            <motion.div 
+              className="mb-12"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <h2 className="text-2xl font-semibold mb-4 flex items-center">
+                <FileText className="mr-2 text-primary" size={20} />
+                Featured Article
+              </h2>
+              <BlogCard post={featuredPost} featured={true} />
+            </motion.div>
           )}
           
-          <div className="mt-12 flex justify-center">
-            <Button variant="outline">Load More Articles</Button>
+          {/* Regular Posts */}
+          <div className="mb-12">
+            <h2 className="text-2xl font-semibold mb-6">
+              {activeTag ? `Articles: ${activeTag}` : 'Latest Articles'}
+              {searchQuery ? ` - Search results for "${searchQuery}"` : ''}
+            </h2>
+            
+            {filteredPosts.length > 0 ? (
+              <motion.div 
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+              >
+                {regularPosts.map((post) => (
+                  <motion.div key={post.id} variants={itemVariants}>
+                    <BlogCard post={post} />
+                  </motion.div>
+                ))}
+              </motion.div>
+            ) : (
+              <div className="text-center py-12">
+                <FileText className="mx-auto mb-4 text-muted-foreground" size={40} />
+                <h3 className="text-lg font-medium mb-1">No articles found</h3>
+                <p className="text-muted-foreground">
+                  Try adjusting your search or filter to find what you're looking for
+                </p>
+              </div>
+            )}
           </div>
-        </div>
+        </motion.div>
       </main>
       
       <Footer />
